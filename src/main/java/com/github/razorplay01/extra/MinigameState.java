@@ -1,5 +1,8 @@
 package com.github.razorplay01.extra;
 
+import com.github.razorplay01.network.ServerNetworkManager;
+import com.github.razorplay01.network.packet.MinigameStatePacket;
+import lombok.Getter;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -22,6 +25,7 @@ public class MinigameState {
 
     private final ServerLevel world;
     private final Vec3 center;
+    @Getter
     private final double radius;
     private final double radiusSq;
     private final int totalPigs;
@@ -89,6 +93,13 @@ public class MinigameState {
         maybeSpawnPig();
         updatePendingSlimes();
         updateMovingSlimes();
+
+        if (server.getTickCount() % 5 == 0) {  // cada 4 ticks (5 veces por segundo)
+            MinigameStatePacket packet = new MinigameStatePacket(this);
+            for (ServerPlayer player : world.players()) {
+                ServerNetworkManager.sendMinigameStatePacketToPlayer(player, packet);
+            }
+        }
 
         if (remainingTicks == 0) {
             endGame();
@@ -260,6 +271,11 @@ public class MinigameState {
 
         trappedPlayers.clear();
         eliminatedPlayers.clear();
+
+        MinigameStatePacket packet = new MinigameStatePacket(null);
+        for (ServerPlayer player : world.players()) {
+            ServerNetworkManager.sendMinigameStatePacketToPlayer(player, packet);
+        }
     }
 
     private void cleanupAllEntities() {
