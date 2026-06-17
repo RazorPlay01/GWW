@@ -1,20 +1,19 @@
 package com.github.razorplay01.cam;
 
+import com.github.razorplay01.cam.api.CameraModifier;
 import com.github.razorplay01.cam.api.CameraPlugin;
-import com.github.razorplay01.cam.api.ICameraModifier;
-import com.github.razorplay01.cam.api.ICameraPlugin;
+import com.github.razorplay01.cam.api.Plugin;
 
-//@CameraPlugin(value = "dev")
-public class DevPlugin implements ICameraPlugin {
-    private ICameraModifier modifier;
+//@Plugin(value = "dev")
+public class DevPlugin implements CameraPlugin {
+    private final CameraModifier modifier;
 
-    @Override
-    public void initialize(ICameraModifier modifier) {
+    public DevPlugin(CameraModifier modifier) {
         this.modifier = modifier;
     }
 
     @Override
-    public void update() {
+    public void update(float partialTicks) {
         modifier.enable()
                 .enablePos()
                 .enableRotation()

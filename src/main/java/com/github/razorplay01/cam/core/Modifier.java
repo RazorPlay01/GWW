@@ -1,12 +1,9 @@
 package com.github.razorplay01.cam.core;
 
-import com.github.razorplay01.cam.api.ICameraModifier;
-import com.github.razorplay01.cam.api.ObstacleHandler;
-import com.github.razorplay01.cam.api.extension.ControlScheme;
-import com.github.razorplay01.cam.api.extension.ICameraModifierExtension;
+import com.github.razorplay01.cam.CameraExtension;
+import com.github.razorplay01.cam.ClientUtil;
+import com.github.razorplay01.cam.api.*;
 import net.minecraft.client.Camera;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -15,13 +12,18 @@ import org.joml.Math;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-public class Modifier implements ICameraModifier, ICameraModifierExtension {
+import java.util.HashMap;
+
+import static com.github.razorplay01.cam.ClientUtil.mc;
+
+public class Modifier implements CameraModifier {
     private final ResourceLocation id;
     private final Vector3f pos = new Vector3f();
     private final Vector3f rot = new Vector3f();
-    private float fov;
+    private int fov;
     private int state;
     private ObstacleHandler obstacleHandler;
+    private final HashMap<Class<?>, CameraData> cameraData = new HashMap<>();
 
     public Modifier(ResourceLocation id) {
         this.id = id;
@@ -29,13 +31,13 @@ public class Modifier implements ICameraModifier, ICameraModifierExtension {
 
     @Override
     public Modifier enablePos() {
-        state |= ModifierStates.POS;
+        state |= CameraStates.POS.code;
         return this;
     }
 
     @Override
     public Modifier disablePos() {
-        state &= ~ModifierStates.POS;
+        state &= ~CameraStates.POS.code;
         return this;
     }
 
@@ -63,13 +65,13 @@ public class Modifier implements ICameraModifier, ICameraModifierExtension {
 
     @Override
     public Modifier enableRotation() {
-        state |= ModifierStates.ROT;
+        state |= CameraStates.ROT.code;
         return this;
     }
 
     @Override
     public Modifier disableRotation() {
-        state &= ~ModifierStates.ROT;
+        state &= ~CameraStates.ROT.code;
         return this;
     }
 
@@ -112,6 +114,24 @@ public class Modifier implements ICameraModifier, ICameraModifierExtension {
     }
 
     @Override
+    public Modifier enableFov() {
+        state |= CameraStates.FOV.code;
+        return this;
+    }
+
+    @Override
+    public Modifier disableFov() {
+        state &= ~CameraStates.FOV.code;
+        return this;
+    }
+
+    @Override
+    public Modifier setFov(int fov) {
+        this.fov = fov;
+        return this;
+    }
+
+    @Override
     public Modifier move(float x, float y, float z) {
         Vector3f vec = new Vector3f(x, y, z)
                 .rotateX(rot.x * Mth.DEG_TO_RAD)
@@ -141,52 +161,57 @@ public class Modifier implements ICameraModifier, ICameraModifierExtension {
     }
 
     @Override
+    public int getFov() {
+        return fov;
+    }
+
+    @Override
     public Modifier enable() {
-        state |= ModifierStates.ENABLE;
+        state |= CameraStates.ENABLE.code;
         return this;
     }
 
     @Override
     public Modifier disable() {
-        state &= ~ModifierStates.ENABLE;
+        state &= ~CameraStates.ENABLE.code;
         return this;
     }
 
     @Override
-    public ICameraModifier disableAll() {
+    public CameraModifier disableAll() {
         state = 0;
         return this;
     }
 
     @Override
     public Modifier enableGlobalMode() {
-        state |= ModifierStates.GLOBAL_MODE;
+        state |= CameraStates.GLOBAL_MODE.code;
         return this;
     }
 
     @Override
     public Modifier disableGlobalMode() {
-        state &= ~ModifierStates.GLOBAL_MODE;
+        state &= ~CameraStates.GLOBAL_MODE.code;
         return this;
     }
 
     @Override
-    public ICameraModifier enableObstacle() {
-        state |= ModifierStates.OBSTACLE;
+    public CameraModifier enableObstacle() {
+        state |= CameraStates.OBSTACLE.code;
         obstacleHandler = ObstacleHandler.NULL;
         return this;
     }
 
     @Override
-    public ICameraModifier enableObstacle(@NotNull ObstacleHandler handler) {
-        state |= ModifierStates.OBSTACLE;
+    public CameraModifier enableObstacle(@NotNull ObstacleHandler handler) {
+        state |= CameraStates.OBSTACLE.code;
         obstacleHandler = handler;
         return this;
     }
 
     @Override
-    public ICameraModifier disableObstacle() {
-        state &= ~ModifierStates.OBSTACLE;
+    public CameraModifier disableObstacle() {
+        state &= ~CameraStates.OBSTACLE.code;
         return this;
     }
 
@@ -196,25 +221,25 @@ public class Modifier implements ICameraModifier, ICameraModifierExtension {
     }
 
     @Override
-    public ICameraModifier setToVanilla() {
-        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+    public CameraModifier setToVanilla() {
+        Camera camera = mc().gameRenderer.getMainCamera();
         Vec3 position = camera.getPosition();
 
-        if (isStateEnabledOr(ModifierStates.GLOBAL_MODE)) {
+        if (isStateEnabledOr(CameraStates.GLOBAL_MODE.code)) {
             pos.set(position.x, position.y, position.z);
-            rot.set(camera.getXRot(), camera.getYRot(), 0);
+            rot.set(camera.getXRot(), camera.getYRot(), ((CameraExtension) camera).getRoll());
         } else {
-            LocalPlayer player = Minecraft.getInstance().player;
-            Vec3 playerPos = player.getPosition(camera.getPartialTickTime());
+            Vec3 playerPos = ClientUtil.player().getPosition(ClientUtil.partialTicks());
             pos.set(position.x - playerPos.x, position.y - playerPos.y, position.z - playerPos.z);
-            rot.set(camera.getXRot(), camera.getYRot(), 0);
+            rot.set(camera.getXRot(), camera.getYRot(), ((CameraExtension) camera).getRoll());
         }
 
+        fov = ((CameraExtension) camera).getFov();
         return this;
     }
 
     @Override
-    public ICameraModifier clean() {
+    public CameraModifier clean() {
         pos.zero();
         rot.zero();
         fov = 0;
@@ -222,14 +247,14 @@ public class Modifier implements ICameraModifier, ICameraModifierExtension {
     }
 
     @Override
-    public ICameraModifier reset() {
+    public CameraModifier reset() {
         disableAll();
         clean();
         return this;
     }
 
     @Override
-    public ICameraModifier setState(int state) {
+    public CameraModifier setState(int state) {
         this.state = state;
         return this;
     }
@@ -244,29 +269,20 @@ public class Modifier implements ICameraModifier, ICameraModifierExtension {
         return id;
     }
 
-    //----------------------------------------EXTENSION--------------------------------------------------------
-    private ControlScheme controlScheme = ControlScheme.VANILLA;
-
     @Override
-    public ICameraModifierExtension enableChunkLoader() {
-        state |= ModifierStates.CHUNK_LOADER;
-        return this;
+    public <T extends CameraData> T getData(CameraDataType<T> dataType) {
+        CameraData data = this.cameraData.get(dataType.type());
+
+        if (data == null) {
+            data = dataType.create();
+            this.cameraData.put(dataType.type(), data);
+        }
+
+        return dataType.type().cast(data);
     }
 
     @Override
-    public ICameraModifierExtension disableChunkLoader() {
-        state &= ~ModifierStates.CHUNK_LOADER;
-        return this;
-    }
-
-    @Override
-    public ICameraModifierExtension setControlScheme(ControlScheme controlScheme) {
-        this.controlScheme = controlScheme;
-        return this;
-    }
-
-    @Override
-    public ControlScheme getControlScheme() {
-        return controlScheme;
+    public HashMap<Class<?>, CameraData> getAllData() {
+        return cameraData;
     }
 }

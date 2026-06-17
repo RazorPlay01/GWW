@@ -1,5 +1,9 @@
 package com.github.razorplay01.extra;
 
+import com.github.darkpred.morehitboxes.api.MultiPart;
+import com.github.razorplay01.entity.ModEntities;
+import com.github.razorplay01.entity.custom.CannonBulletEntity;
+import com.github.razorplay01.entity.custom.CannonEntity;
 import com.github.razorplay01.network.ServerNetworkManager;
 import com.github.razorplay01.network.packet.MinigameStatePacket;
 import lombok.Getter;
@@ -23,7 +27,9 @@ public class MinigameState {
     private static final int SLIME_SPAWN_DELAY = 20;
     private static final double PUSH_MULTIPLIER = 1.5;
 
+    @Getter
     private final ServerLevel world;
+    @Getter
     private final Vec3 center;
     @Getter
     private final double radius;
@@ -120,19 +126,25 @@ public class MinigameState {
 
     private void updateMovingSlimes() {
         movingSlimes.removeIf(ms -> {
-            Vec3 newPos = ms.position.add(ms.direction.scale(slimeSpeed));
-            ms.position = newPos;
-
             Entity slimeEntity = world.getEntity(ms.slimeUUID);
             if (slimeEntity == null) {
                 removePigByUUID(ms.pigUUID);
                 return true;
             }
 
-            slimeEntity.teleportTo(newPos.x, newPos.y, newPos.z);
+            Vec3 velocity = ms.direction.scale(slimeSpeed);
+            Vec3 newPos = slimeEntity.position().add(velocity);
+
+            slimeEntity.moveTo(newPos.x, newPos.y, newPos.z,
+                    (float) Math.toDegrees(Math.atan2(-ms.direction.x, ms.direction.z)), 0);
+
+            slimeEntity.noPhysics = true;
+            slimeEntity.setDeltaMovement(Vec3.ZERO);
+
+            ms.position = newPos;
             checkCollision(ms, slimeEntity);
 
-            double distToCenter = newPos.distanceTo(center);
+            double distToCenter = ms.position.distanceTo(center);
             if (!ms.hasEnteredCircle && distToCenter <= radius) {
                 ms.hasEnteredCircle = true;
             }
@@ -146,7 +158,9 @@ public class MinigameState {
     }
 
     private void checkCollision(MovingSlime ms, Entity slime) {
-        AABB slimeBox = slime.getBoundingBox();
+        MultiPart<CannonBulletEntity> hitbox = ((CannonBulletEntity) slime).getEntityHitboxData().getCustomParts().getFirst();
+        if (hitbox == null) return;
+        AABB slimeBox = hitbox.getEntity().getBoundingBox().deflate(0.3);
         for (ServerPlayer player : world.players()) {
             if (!trappedPlayers.contains(player.getUUID()) ||
                     eliminatedPlayers.contains(player.getUUID())) continue;
@@ -155,8 +169,8 @@ public class MinigameState {
                 Vec3 push = ms.direction.scale(slimeSpeed * PUSH_MULTIPLIER);
                 player.setDeltaMovement(player.getDeltaMovement().add(push));
                 player.hurtMarked = true;
-                world.sendParticles(ParticleTypes.SWEEP_ATTACK,
-                        player.getX(), player.getY() + 1, player.getZ(), 1, 0, 0, 0, 0);
+
+                world.sendParticles(ParticleTypes.CRIT, player.getX(), player.getY()+1.5, player.getZ(), 3, 0, 0, 0, 0.1);
                 break;
             }
         }
@@ -197,7 +211,7 @@ public class MinigameState {
         float deviation = (float) (Math.random() * 40 - 20);
         float finalYaw = yaw + deviation;
 
-        Pig pig = new Pig(EntityType.PIG, world);
+        CannonEntity pig = new CannonEntity(ModEntities.CANNON, world);
         pig.setPos(pigPos.x, pigPos.y, pigPos.z);
         pig.setYRot(finalYaw);
         pig.setYHeadRot(finalYaw);
@@ -225,20 +239,27 @@ public class MinigameState {
     private void spawnSlime(UUID pigUUID, Vec3 startPos, Vec3 direction) {
         float yaw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
 
-        Slime slime = new Slime(EntityType.SLIME, world);
-        slime.setSize(1, true);
+        CannonBulletEntity slime = new CannonBulletEntity(ModEntities.CANNON_BULLET, world);
         slime.setPos(startPos.x, startPos.y, startPos.z);
         slime.setYRot(yaw);
         slime.setYHeadRot(yaw);
         slime.yRotO = yaw;
         slime.yHeadRotO = yaw;
+
         slime.setNoAi(true);
         slime.setNoGravity(true);
         slime.setInvulnerable(true);
         slime.setPersistenceRequired();
         slime.setSilent(true);
+        slime.noPhysics = true; // <-- AÑADIR ESTO
 
         world.addFreshEntity(slime);
+
+        CannonEntity cannonEntity = (CannonEntity) world.getEntity(pigUUID);
+        if (cannonEntity != null) {
+            cannonEntity.triggerShootAnim(world);
+        }
+
         movingSlimes.add(new MovingSlime(slime.getUUID(), pigUUID, startPos, direction));
     }
 
@@ -312,12 +333,5 @@ public class MinigameState {
                 player.sendSystemMessage(Component.literal("§a¡Has entrado en la zona de juego! No podrás salir."), false);
             }
         }
-    }
-
-    public Vec3 getCenter() {
-        return center;
-    }
-    public ServerLevel getWorld() {
-        return world;
     }
 }

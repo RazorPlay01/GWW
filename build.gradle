@@ -8,6 +8,13 @@ group = project.maven_group
 
 repositories {
     maven { url 'https://jitpack.io' }
+    maven {
+        name = 'GeckoLib'
+        url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+        content {
+            includeGroup("software.bernie.geckolib")
+        }
+    }
 }
 loom {
     accessWidenerPath = rootProject.file("src/main/resources/1.21.1.accesswidener")
@@ -30,6 +37,8 @@ dependencies {
 
     testCompileOnly("org.projectlombok:lombok:1.18.44")
     testAnnotationProcessor("org.projectlombok:lombok:1.18.44")
+    modImplementation "software.bernie.geckolib:geckolib-fabric-${minecraft_version}:${geckolib_version}"
+    modImplementation files('libs/morehitboxes-fabric-1.21.1-1.9.4-alpha.jar')
 }
 
 processResources {

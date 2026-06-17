@@ -1,7 +1,9 @@
 package com.github.razorplay01.extra;
 
+import lombok.Getter;
 import net.minecraft.world.phys.Vec3;
 
+@Getter
 public class ClientMinigameState {
     private static ClientMinigameState instance;
 
@@ -18,17 +20,5 @@ public class ClientMinigameState {
         this.active = active;
         this.center = center;
         this.radius = radius;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public Vec3 getCenter() {
-        return center;
-    }
-
-    public double getRadius() {
-        return radius;
     }
 }

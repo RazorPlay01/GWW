@@ -14,6 +14,10 @@ import org.joml.Vector3f;
 
 @SuppressWarnings("unused")
 public final class ClientUtil {
+    private ClientUtil() {
+        /* This utility class should not be instantiated */
+    }
+
     private static final Minecraft MC = Minecraft.getInstance();
     private static CameraType cameraType = CameraType.FIRST_PERSON;
     private static boolean bobView = false;
@@ -43,7 +47,7 @@ public final class ClientUtil {
         float partialTicks = partialTicks();
         LocalPlayer player = player();
         double x = Mth.lerp(partialTicks, player.xo, player.getX());
-        double y = Mth.lerp(partialTicks, player.yo, player.getY()) + (double) player.getEyeHeight();
+        double y = Mth.lerp(partialTicks, player.yo, player.getY()) + player.getEyeHeight();
         double z = Mth.lerp(partialTicks, player.zo, player.getZ());
         return dest.set(x, y, z);
     }

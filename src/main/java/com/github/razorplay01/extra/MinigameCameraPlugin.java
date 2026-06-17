@@ -1,45 +1,39 @@
 package com.github.razorplay01.extra;
 
+import com.github.razorplay01.cam.api.CameraModifier;
 import com.github.razorplay01.cam.api.CameraPlugin;
-import com.github.razorplay01.cam.api.ICameraModifier;
-import com.github.razorplay01.cam.api.ICameraPlugin;
 import com.github.razorplay01.cam.api.ModifierPriority;
-import net.minecraft.client.CameraType;
-import net.minecraft.client.Minecraft;
+import com.github.razorplay01.cam.api.Plugin;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@CameraPlugin(value = "minigame_aerial", priority = ModifierPriority.HIGH)
-public class MinigameCameraPlugin implements ICameraPlugin {
+import static com.github.razorplay01.cam.ClientUtil.*;
 
+@Plugin(value = "minigame_aerial", priority = ModifierPriority.HIGH)
+public class MinigameCameraPlugin implements CameraPlugin {
     private static final Logger LOGGER = LoggerFactory.getLogger("MinigameCameraPlugin");
-    private ICameraModifier modifier;
+    private final CameraModifier modifier;
     private boolean wasActive = false;
 
-    private boolean isEnableViewBobbing;
-    private static final Minecraft MC = Minecraft.getInstance();
-
-    @Override
-    public void initialize(ICameraModifier modifier) {
+    public MinigameCameraPlugin(CameraModifier modifier) {
         this.modifier = modifier;
         LOGGER.info("Plugin de cámara aérea para minijuego cargado");
     }
 
     @Override
-    public void update() {
+    public void update(float partialTicks) {
         ClientMinigameState game = ClientMinigameState.get();
         boolean shouldBeActive = game.isActive();
 
         if (shouldBeActive) {
             applyAerialCamera(game);
             wasActive = true;
-            isEnableViewBobbing = MC.options.bobView().get();
-            MC.options.bobView().set(false);
-            MC.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+            disableBobView();
+            toThirdView();
         } else if (wasActive) {
-            MC.options.setCameraType(CameraType.FIRST_PERSON);
-            MC.options.bobView().set(isEnableViewBobbing);
+            resetBobView();
+            resetCameraType();
             modifier.disableAll().reset();
             wasActive = false;
         }
@@ -47,7 +41,7 @@ public class MinigameCameraPlugin implements ICameraPlugin {
 
     private void applyAerialCamera(ClientMinigameState game) {
         Vec3 center = game.getCenter();
-        float height = 18.0f; // Ajusta según el radio
+        float height = 15.0f;
 
         modifier.enable()
                 .enablePos()

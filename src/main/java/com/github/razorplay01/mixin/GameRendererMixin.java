@@ -12,6 +12,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class GameRendererMixin {
     @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Options;getEffectiveRenderDistance()I"))
     public void renderLevel(DeltaTracker deltaTracker, CallbackInfo ci) {
-        ManagerTicker.tick();
+        ManagerTicker.update(deltaTracker.getGameTimeDeltaPartialTick(true));
     }
 }
