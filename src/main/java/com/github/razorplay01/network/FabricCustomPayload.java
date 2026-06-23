@@ -5,6 +5,7 @@ import com.github.razorplay.packet_handler.network.IPacket;
 import com.github.razorplay.packet_handler.network.PacketTCP;
 import com.github.razorplay01.GWW;
 import com.github.razorplay01.network.packet.MinigameStatePacket;
+import com.github.razorplay01.network.packet.NoisePacket;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteStreams;
 import io.netty.buffer.ByteBuf;
@@ -57,7 +58,8 @@ public record FabricCustomPayload(IPacket packet) implements CustomPacketPayload
 
     public static void registerPackets() {
         Class<? extends IPacket>[] packetClasses = new Class[]{
-                MinigameStatePacket.class
+                MinigameStatePacket.class,
+                NoisePacket.class
         };
         PacketTCP.registerPackets(packetClasses);
         PacketTCP.setLoggingEnabled(false);

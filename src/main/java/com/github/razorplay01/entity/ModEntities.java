@@ -1,8 +1,8 @@
 package com.github.razorplay01.entity;
 
 import com.github.razorplay01.GWW;
-import com.github.razorplay01.entity.custom.CannonBulletEntity;
-import com.github.razorplay01.entity.custom.CannonEntity;
+import com.github.razorplay01.entity.attribute.ModAttributes;
+import com.github.razorplay01.entity.custom.*;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -20,6 +20,85 @@ public class ModEntities {
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "cannon_bullet"),
             EntityType.Builder.of(CannonBulletEntity::new, MobCategory.MISC)
                     .sized(0.8f, 0.8f).build());
+
+    public static final EntityType<UblablaEntity> UBLABLA = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "ublabla"),
+            EntityType.Builder.of(UblablaEntity::new, MobCategory.MISC)
+                    .sized(1f, 2.5f).build());
+
+    public static final EntityType<CajaEntity> CAJA = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "caja"),
+            EntityType.Builder.of(CajaEntity::new, MobCategory.MISC)
+                    .sized(1.1f, 1.1f).build());
+
+    public static final EntityType<Cuadro1Entity> CUADRO1 = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "cuadro_lilith_1"),
+            EntityType.Builder.of(Cuadro1Entity::new, MobCategory.MISC)
+                    .sized(2f, 2f).build());
+    public static final EntityType<Cuadro2Entity> CUADRO2 = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "cuadro_lilith_2"),
+            EntityType.Builder.of(Cuadro2Entity::new, MobCategory.MISC)
+                    .sized(2f, 2f).build());
+
+    public static final EntityType<RejaDuctoEntity> REJA_DUCTO = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "reja_ducto"),
+            EntityType.Builder.of(RejaDuctoEntity::new, MobCategory.MISC)
+                    .sized(2f, 2f).build());
+
+    public static final EntityType<PuertaAticoEntity> PUERTA_ATICO = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "puerta_atico"),
+            EntityType.Builder.of(PuertaAticoEntity::new, MobCategory.MISC)
+                    .sized(2f, 0.2f).build());
+
+    public static final EntityType<LuzTortugaEntity> LUZ_TORTUGA = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "luz_tortuga"),
+            EntityType.Builder.of(LuzTortugaEntity::new, MobCategory.MISC)
+                    .sized(0.5f, 0.6f).build());
+
+    public static final EntityType<InterruptorIndustrialEntity> INTERRUPTOR_INDUSTRIAL = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "interruptor_industrial"),
+            EntityType.Builder.of(InterruptorIndustrialEntity::new, MobCategory.MISC)
+                    .sized(0.5f, 1f).build());
+
+    public static final EntityType<CajaHerramientasEntity> CAJA_HERRAMIENTAS = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "caja_herramientas"),
+            EntityType.Builder.of(CajaHerramientasEntity::new, MobCategory.MISC)
+                    .sized(0.6f, 0.6f).build());
+
+    public static final EntityType<PanelFusiblesEntity> PANEL_FUSIBLES = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "panel_fusibles"),
+            EntityType.Builder.of(PanelFusiblesEntity::new, MobCategory.MISC)
+                    .sized(2.5f, 1.5f).build());
+    public static final EntityType<PuertaMetalicaEntity> PUERTA_METALICA = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "puerta_metalica"),
+            EntityType.Builder.of(PuertaMetalicaEntity::new, MobCategory.MISC)
+                    .sized(2f, 1.5f).build());
+
+    public static final EntityType<FigurasParedEntity> FIGURAS_PARED = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "figuras_pared"),
+            EntityType.Builder.of(FigurasParedEntity::new, MobCategory.MISC)
+                    .sized(2f, 2f).build());
+
+    public static final EntityType<ManivelaEntity> MANIVELA = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "manivela"),
+            EntityType.Builder.of(ManivelaEntity::new, MobCategory.MISC)
+                    .sized(0.8f, 0.5f).build());
+    public static final EntityType<PalancaEntity> PALANCA = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "palanca"),
+            EntityType.Builder.of(PalancaEntity::new, MobCategory.MISC)
+                    .sized(0.5f, 0.8f).build());
+    public static final EntityType<ValvulaEntity> VALVULA = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "valvula"),
+            EntityType.Builder.of(ValvulaEntity::new, MobCategory.MISC)
+                    .sized(1f, 1f).build());
+
+    /*public static final EntityType<MysticOrbEntity> MYSTIC_ORB = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "mystic_orb"),
+            EntityType.Builder.of(MysticOrbEntity::new, MobCategory.MISC)
+                    .sized(0.6F, 0.6F)
+                    .updateInterval(1)
+                    .clientTrackingRange(10)
+                    .build());*/
 
     public static void registerModEntities() {
         GWW.LOGGER.info("Registering Mod Entities for " + GWW.MOD_ID);

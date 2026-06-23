@@ -29,17 +29,17 @@ public final class AnnotationFinder {
     private static final String PLUGIN_DESC = "L" + Plugin.class.getName().replace('.', '/') + ";";
 
     public static void clientLoading() {
-        LOGGER.info("=== Iniciando carga de plugins de FreeCameraAPI ===");
+        LOGGER.debug("=== Iniciando carga de plugins de FreeCameraAPI ===");
         loadPlugin();
-        LOGGER.info("=== Carga de plugins completada ===");
+        LOGGER.debug("=== Carga de plugins completada ===");
     }
 
     private static void loadPlugin() {
-        LOGGER.info("Descriptor de anotación @Plugin: {}", PLUGIN_DESC);
+        LOGGER.debug("Descriptor de anotación @Plugin: {}", PLUGIN_DESC);
 
         List<Triplet<CameraModifier, CameraPlugin, ModifierPriority>> plugins = findPlugin();
 
-        LOGGER.info("Total de plugins encontrados: {}", plugins.size());
+        LOGGER.debug("Total de plugins encontrados: {}", plugins.size());
 
         List<ResourceLocation> order = new ArrayList<>();
 
@@ -48,13 +48,13 @@ public final class AnnotationFinder {
             CameraPlugin plugin = triplet.getB();
             ModifierPriority priority = triplet.getC();
 
-            LOGGER.info("Registrando plugin: {} con prioridad: {}",
+            LOGGER.debug("Registrando plugin: {} con prioridad: {}",
                     modifier.getId(), priority);
 
             try {
                 ModifierRegistry.INSTANCE.register(plugin, priority, modifier);
                 order.add(modifier.getId());
-                LOGGER.info("✓ Plugin {} registrado exitosamente", modifier.getId());
+                LOGGER.debug("✓ Plugin {} registrado exitosamente", modifier.getId());
             } catch (Exception e) {
                 LOGGER.error("✗ Error al registrar plugin {}", modifier.getId(), e);
             }
@@ -62,7 +62,7 @@ public final class AnnotationFinder {
 
         // ==================== FREEZE AUTOMÁTICO ====================
         if (!plugins.isEmpty()) {
-            LOGGER.info("Ejecutando freeze automático del ModifierRegistry...");
+            LOGGER.debug("Ejecutando freeze automático del ModifierRegistry...");
 
             List<String> orderStrings = new ArrayList<>();
             for (ResourceLocation id : order) {
@@ -73,7 +73,7 @@ public final class AnnotationFinder {
 
             try {
                 ModifierRegistry.INSTANCE.freeze(orderStrings, removed);
-                LOGGER.info("✓ Freeze completado exitosamente con {} plugins", plugins.size());
+                LOGGER.debug("✓ Freeze completado exitosamente con {} plugins", plugins.size());
 
                 if (!removed.isEmpty()) {
                     LOGGER.warn("Plugins removidos durante freeze: {}", removed);
@@ -92,7 +92,7 @@ public final class AnnotationFinder {
         Collection<ModContainer> allMods = FabricLoader.getInstance().getAllMods();
         boolean dev = FabricLoader.getInstance().isDevelopmentEnvironment();
 
-        LOGGER.info("Escaneando {} mod(s) en modo: {}", allMods.size(), dev ? "DESARROLLO" : "PRODUCCIÓN");
+        LOGGER.debug("Escaneando {} mod(s) en modo: {}", allMods.size(), dev ? "DESARROLLO" : "PRODUCCIÓN");
 
         for (ModContainer modContainer : allMods) {
             String modId = modContainer.getMetadata().getId();
@@ -101,7 +101,7 @@ public final class AnnotationFinder {
                 List<PluginData> foundPlugins = scanModForPlugins(modContainer, dev);
 
                 if (!foundPlugins.isEmpty()) {
-                    LOGGER.info("✓ Mod '{}' contiene {} plugin(s)", modId, foundPlugins.size());
+                    LOGGER.debug("✓ Mod '{}' contiene {} plugin(s)", modId, foundPlugins.size());
                 }
 
                 for (PluginData pluginData : foundPlugins) {
@@ -112,12 +112,12 @@ public final class AnnotationFinder {
                         String value = pluginData.value;
 
                         if (!dev && value.equals("dev")) {
-                            LOGGER.info("Plugin '{}' omitido (marcado como 'dev' en producción)", value);
+                            LOGGER.debug("Plugin '{}' omitido (marcado como 'dev' en producción)", value);
                             continue;
                         }
 
                         ResourceLocation id = ResourceLocation.fromNamespaceAndPath(modId, value);
-                        LOGGER.info("Procesando plugin: {} desde clase {}", id, pluginData.className);
+                        LOGGER.debug("Procesando plugin: {} desde clase {}", id, pluginData.className);
                         // endregion
 
                         // region 读取优先级
@@ -130,13 +130,13 @@ public final class AnnotationFinder {
                         CameraModifier modifier;
 
                         if (modifierClass != null && !modifierClass.isEmpty()) {
-                            LOGGER.info("Instanciando modifier personalizado: {}", modifierClass);
+                            LOGGER.debug("Instanciando modifier personalizado: {}", modifierClass);
                             try {
                                 modifier = Class.forName(modifierClass)
                                         .asSubclass(CameraModifier.class)
                                         .getConstructor(ResourceLocation.class)
                                         .newInstance(id);
-                                LOGGER.info("✓ Modifier personalizado creado: {}", modifierClass);
+                                LOGGER.debug("✓ Modifier personalizado creado: {}", modifierClass);
                             } catch (ClassNotFoundException e) {
                                 LOGGER.error("✗ Clase de modifier no encontrada: {}", modifierClass);
                                 throw CameraPluginInitializeException.modifierClassNotFound(modifierClass);
@@ -155,7 +155,7 @@ public final class AnnotationFinder {
 
                         // region 实例化plugin
                         name = pluginData.className;
-                        LOGGER.info("Instanciando plugin desde clase: {}", name);
+                        LOGGER.debug("Instanciando plugin desde clase: {}", name);
 
                         CameraPlugin plugin = Class
                                 .forName(name)
@@ -164,7 +164,7 @@ public final class AnnotationFinder {
                                 .newInstance(modifier);
 
                         plugins.add(new Triplet<>(modifier, plugin, priority));
-                        LOGGER.info("✓ Plugin cargado exitosamente: {} [Prioridad: {}]", id, priority);
+                        LOGGER.debug("✓ Plugin cargado exitosamente: {} [Prioridad: {}]", id, priority);
                         // endregion
 
                     } catch (ClassNotFoundException e) {
@@ -184,7 +184,7 @@ public final class AnnotationFinder {
             }
         }
 
-        LOGGER.info("Escaneo completado. Plugins válidos encontrados: {}", plugins.size());
+        LOGGER.debug("Escaneo completado. Plugins válidos encontrados: {}", plugins.size());
         return plugins;
     }
 
@@ -330,17 +330,17 @@ public final class AnnotationFinder {
             if (classNode.visibleAnnotations != null) {
                 for (AnnotationNode annotation : classNode.visibleAnnotations) {
                     if (PLUGIN_DESC.equals(annotation.desc)) {
-                        LOGGER.info("✓✓✓ ¡PLUGIN ENCONTRADO en {}! ✓✓✓", classNode.name);
+                        LOGGER.debug("✓✓✓ ¡PLUGIN ENCONTRADO en {}! ✓✓✓", classNode.name);
 
                         String value = extractAnnotationValue(annotation, "value", "default");
                         String priorityStr = extractAnnotationValue(annotation, "priority", "NORMAL");
                         String modifierClass = extractAnnotationValue(annotation, "modifier", null);
 
-                        LOGGER.info("  value='{}', priority='{}', modifier='{}'",
+                        LOGGER.debug("  value='{}', priority='{}', modifier='{}'",
                                 value, priorityStr, modifierClass != null ? modifierClass : "default");
 
                         if (!dev && "dev".equals(value)) {
-                            LOGGER.info("  Plugin omitido (dev en producción)");
+                            LOGGER.debug("  Plugin omitido (dev en producción)");
                             continue;
                         }
 
@@ -357,7 +357,7 @@ public final class AnnotationFinder {
                         PluginData pluginData = new PluginData(className, value, priority, modifierClass);
                         plugins.add(pluginData);
 
-                        LOGGER.info("  ✓ Plugin añadido a lista de carga");
+                        LOGGER.debug("  ✓ Plugin añadido a lista de carga");
                     }
                 }
             }

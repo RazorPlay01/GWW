@@ -1,11 +1,11 @@
 package com.github.razorplay01.network;
 
 import com.github.razorplay.packet_handler.network.IPacket;
+import com.github.razorplay01.client.ClientNoiseState;
 import com.github.razorplay01.extra.ClientMinigameState;
 import com.github.razorplay01.network.packet.MinigameStatePacket;
+import com.github.razorplay01.network.packet.NoisePacket;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.Vec3;
 
 import static com.github.razorplay01.GWW.LOGGER;
@@ -22,6 +22,7 @@ public class ClientNetworkManager {
 
                     switch (packet) {
                         case MinigameStatePacket pkt -> checkMinigameStatePacket(context, pkt);
+                        case NoisePacket pkt -> handleNoisePacket(context, pkt);
 
                         default -> LOGGER.info("Unknown client packet: {}", packet.getPacketId());
                     }
@@ -37,6 +38,14 @@ public class ClientNetworkManager {
                 ));
     }
 
+    private static void handleNoisePacket(ClientPlayNetworking.Context context, NoisePacket pkt) {
+        context.client().execute(() ->
+                ClientNoiseState.get().update(
+                        pkt.getNoiseLevel(),
+                        pkt.getDecayRate(),
+                        pkt.isEnabled()
+                ));
+    }
 
 	/*private static void checkToastPacket(ClientPlayNetworking.Context context, ToastPacket pkt) {
 		context.client().execute(() -> sendToast(Component.literal(pkt.getTitle()), Component.literal(pkt.getDescription())));

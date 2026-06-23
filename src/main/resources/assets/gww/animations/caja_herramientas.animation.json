@@ -1,0 +1,35 @@
+{
+	"format_version": "1.8.0",
+	"animations": {
+		"animation.open": {
+			"loop": "hold_on_last_frame",
+			"animation_length": 0.4583,
+			"bones": {
+				"bone": {
+					"rotation": {
+						"0.0": {
+							"vector": [0, 0, 0]
+						},
+						"0.25": {
+							"vector": [-85, 0, 0]
+						},
+						"0.2917": {
+							"vector": [-92.5, 0, 0]
+						},
+						"0.375": {
+							"vector": [-87.5, 0, 0]
+						},
+						"0.4583": {
+							"vector": [-85, 0, 0]
+						}
+					}
+				}
+			}
+		},
+		"animation.idle": {
+			"animation_length": 0.5,
+			"bones": {
+			}
+		}
+	}
+}
