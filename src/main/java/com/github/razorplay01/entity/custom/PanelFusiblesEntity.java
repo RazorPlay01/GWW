@@ -5,6 +5,7 @@ import com.github.darkpred.morehitboxes.api.EntityHitboxDataFactory;
 import com.github.darkpred.morehitboxes.api.GeckoLibMultiPartEntity;
 import com.github.darkpred.morehitboxes.api.MultiPart;
 import com.github.razorplay01.item.ModItems;
+import lombok.Getter;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -37,6 +38,7 @@ import static com.github.razorplay01.entity.custom.util.Util.saveLinkedList;
 
 // todo: vincular con puerta metalica
 
+@Getter
 public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPartEntity<PanelFusiblesEntity> {
     private EntityHitboxData<PanelFusiblesEntity> hitboxData;
 
@@ -67,7 +69,7 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
 
     private final List<Vec3> linkedTurtlesPuzzle1 = new ArrayList<>();
     private final List<Vec3> linkedTurtlesPuzzle2 = new ArrayList<>();
-
+    private final List<Vec3> linkedDoors = new ArrayList<>();
     private static final String[] PART_NAMES = {"1", "2", "3", "4", "5", "6"};
 
     public static final String[] FUSE_BONE_NAMES = {
@@ -166,6 +168,45 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
     public void unlinkAllTurtles() {
         linkedTurtlesPuzzle1.clear();
         linkedTurtlesPuzzle2.clear();
+    }
+
+    public void linkDoor(PuertaMetalicaEntity door, Vec3 roomCenter) {
+        if (door == null || roomCenter == null) return;
+
+        Vec3 relativePos = door.position().subtract(roomCenter);
+
+        if (!linkedDoors.contains(relativePos)) {
+            linkedDoors.add(relativePos);
+            updateDoorState(door);
+        }
+    }
+
+    public void unlinkAllDoors() {
+        linkedDoors.clear();
+    }
+
+    public int getLinkedDoorsCount() {
+        return linkedDoors.size();
+    }
+
+    private void updateDoorState(PuertaMetalicaEntity door) {
+        door.setOpen(areBothPuzzlesSolved());
+    }
+
+    public void updateAllLinkedDoors() {
+        if (linkedDoors.isEmpty()) return;
+
+        Vec3 panelPos = this.position();
+        boolean shouldOpen = areBothPuzzlesSolved();
+
+        for (Vec3 relPos : linkedDoors) {
+            Vec3 absolutePos = panelPos.add(relPos);
+
+            this.level().getEntitiesOfClass(PuertaMetalicaEntity.class,
+                            AABB.ofSize(absolutePos, 5, 5, 5),
+                            d -> d.position().distanceToSqr(absolutePos) < 3.0)
+                    .forEach(door -> door.setOpen(shouldOpen));
+        }
     }
 
     public void updateLinkedTurtles(int puzzleId, int targetState) {
@@ -437,6 +478,7 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
         // === VERIFICAR PUZZLE después de cualquier cambio ===
         if (changed) {
             checkPuzzles(player, slotIndex);
+            updateAllLinkedDoors();
         }
     }
 
@@ -450,6 +492,7 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
         tag.putString("Facing", getFacing().getSerializedName());
         tag.putBoolean("Puzzle1Solved", isPuzzle1Solved());
         tag.putBoolean("Puzzle2Solved", isPuzzle2Solved());
+        saveLinkedList(tag, "LinkedDoors", linkedDoors);
         saveLinkedList(tag, "LinkedPuzzle1", linkedTurtlesPuzzle1);
         saveLinkedList(tag, "LinkedPuzzle2", linkedTurtlesPuzzle2);
     }
@@ -477,6 +520,8 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
 
         linkedTurtlesPuzzle2.clear();
         linkedTurtlesPuzzle2.addAll(loadLinkedList(tag, "LinkedPuzzle2"));
+        linkedDoors.clear();
+        linkedDoors.addAll(loadLinkedList(tag, "LinkedDoors"));
     }
 
     // ==================== ANIMACIÓN ====================

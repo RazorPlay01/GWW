@@ -26,11 +26,20 @@ public class EscapeRoomConfigCommand {
                         .then(Commands.literal("panel_fusible")
                                 .then(Commands.argument("panel", EntityArgument.entity())
                                         .then(Commands.literal("link")
+                                                .then(Commands.argument("puerta", EntityArgument.entity())
+                                                        .executes(EscapeRoomConfigCommand::linkDoorToPanel)
+                                                )
                                                 .then(Commands.argument("turtle", EntityArgument.entity())
                                                         .then(Commands.argument("puzzleId", IntegerArgumentType.integer(1, 2))
                                                                 .executes(EscapeRoomConfigCommand::linkTurtleToPanel)
                                                         )
                                                 )
+                                        )
+                                        .then(Commands.literal("unlink")
+                                                .executes(EscapeRoomConfigCommand::unlinkAllDoorsFromPanel)
+                                        )
+                                        .then(Commands.literal("list")
+                                                .executes(EscapeRoomConfigCommand::listPanelDoors)
                                         )
                                         .then(Commands.literal("unlink")
                                                 .executes(EscapeRoomConfigCommand::unlinkAllFromPanel)
@@ -678,5 +687,71 @@ public class EscapeRoomConfigCommand {
         valvula.clearParticleEmitters();
         ctx.getSource().sendSuccess(() -> Component.literal("§a✔ " + count + " emisores eliminados."), false);
         return 1;
+    }
+
+    private static int linkDoorToPanel(CommandContext<CommandSourceStack> context) {
+        try {
+            Entity panelEntity = EntityArgument.getEntity(context, "panel");
+            Entity doorEntity = EntityArgument.getEntity(context, "puerta");
+
+            if (!(panelEntity instanceof PanelFusiblesEntity panel)) {
+                context.getSource().sendFailure(Component.literal("§cPrimera entidad debe ser un Panel de Fusibles."));
+                return 0;
+            }
+
+            if (!(doorEntity instanceof PuertaMetalicaEntity door)) {
+                context.getSource().sendFailure(Component.literal("§cSegunda entidad debe ser una Puerta Metálica."));
+                return 0;
+            }
+
+            Vec3 roomCenter = panel.position();
+            panel.linkDoor(door, roomCenter);
+
+            context.getSource().sendSuccess(() ->
+                    Component.literal("§a✓ Puerta metálica vinculada correctamente al panel."), true);
+            return 1;
+
+        } catch (Exception e) {
+            context.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int unlinkAllDoorsFromPanel(CommandContext<CommandSourceStack> context) {
+        try {
+            Entity entity = EntityArgument.getEntity(context, "panel");
+
+            if (entity instanceof PanelFusiblesEntity panel) {
+                panel.unlinkAllDoors();
+                context.getSource().sendSuccess(() ->
+                        Component.literal("§aTodas las puertas vinculadas han sido eliminadas."), true);
+                return 1;
+            }
+
+            context.getSource().sendFailure(Component.literal("§cLa entidad no es un Panel de Fusibles."));
+            return 0;
+        } catch (Exception e) {
+            context.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int listPanelDoors(CommandContext<CommandSourceStack> context) {
+        try {
+            Entity entity = EntityArgument.getEntity(context, "panel");
+
+            if (entity instanceof PanelFusiblesEntity panel) {
+                context.getSource().sendSuccess(() -> Component.literal("§6=== Puertas Vinculadas ==="), false);
+                context.getSource().sendSuccess(() -> Component.literal(
+                        "§ePuertas metálicas vinculadas: §f" + panel.getLinkedDoorsCount()), false);
+                return 1;
+            }
+
+            context.getSource().sendFailure(Component.literal("§cLa entidad no es un Panel de Fusibles."));
+            return 0;
+        } catch (Exception e) {
+            context.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
+            return 0;
+        }
     }
 }

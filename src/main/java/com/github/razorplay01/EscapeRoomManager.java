@@ -330,6 +330,7 @@ public class EscapeRoomManager {
         reLinkPanels(level, newCenterPos);
         reLinkInterruptors(level, newCenterPos);
         reLinkRejas(level, newCenterPos);
+        reLinkDoors(level, newCenterPos);
     }
 
     private static void reLinkPanels(ServerLevel level, BlockPos centerPos) {
@@ -419,6 +420,20 @@ public class EscapeRoomManager {
             // Comprobar si ya debería estar abierta
             if (reja.isPowerPanelActive()) {
                 reja.tryOpenAutomatically();
+            }
+        }
+    }
+
+    private static void reLinkDoors(ServerLevel level, BlockPos centerPos) {
+        List<PanelFusiblesEntity> panels = level.getEntitiesOfClass(
+                PanelFusiblesEntity.class, new AABB(centerPos).inflate(150), p -> true);
+
+        for (PanelFusiblesEntity panel : panels) {
+            List<Vec3> savedDoors = new ArrayList<>(panel.getLinkedDoors());
+            if (panel.areBothPuzzlesSolved()) {
+                panel.updateAllLinkedDoors();
+            } else {
+                panel.updateAllLinkedDoors();
             }
         }
     }
