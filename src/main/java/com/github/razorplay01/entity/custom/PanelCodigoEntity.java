@@ -29,9 +29,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static com.github.razorplay01.entity.custom.util.Util.*;
+
 public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEntity<PanelCodigoEntity> {
     private EntityHitboxData<PanelCodigoEntity> hitboxData;
-
+    private final List<Vec3> linkedDoors = new ArrayList<>();
     // =============================================
     // SYNCED DATA (servidor <-> cliente)
     // =============================================
@@ -130,6 +132,7 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
         tag.putString("CurrentInput", this.entityData.get(CURRENT_INPUT));
         tag.putBoolean("PuzzleLocked", isLocked());
         tag.putInt("LockTimer", this.lockTimer);
+        saveLinkedList(tag, "LinkedDoors", linkedDoors);
     }
 
     @Override
@@ -139,6 +142,8 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
         this.entityData.set(CURRENT_INPUT, tag.getString("CurrentInput"));
         setLocked(tag.getBoolean("PuzzleLocked"));
         this.lockTimer = tag.getInt("LockTimer");
+        linkedDoors.clear();
+        linkedDoors.addAll(loadLinkedList(tag, "LinkedDoors"));
     }
 
     // =============================================
@@ -297,26 +302,17 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
         }
     }
 
-    /**
-     * Se llama cuando el puzzle se completa exitosamente
-     */
     private void onPuzzleSolved(Player player) {
         setSolved(true);
         setCurrentInput(new ArrayList<>());
 
         player.sendSystemMessage(Component.literal("§a§l★ ¡PUZZLE RESUELTO! ★"));
 
-        // Sonido de éxito
         this.level().playSound(null, this.blockPosition(),
                 SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.BLOCKS, 1.0F, 1.0F);
 
-        // ===================================================
-        // AQUÍ PUEDES AGREGAR LO QUE PASE AL RESOLVER:
-        // - Abrir una puerta
-        // - Dar un item
-        // - Activar redstone
-        // - Spawnear algo
-        // ===================================================
+        // === ABRIR PUERTAS VINCULADAS ===
+        updateAllLinkedDoors();
     }
 
     /**
@@ -340,6 +336,9 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
     private void handleStatusButton(Player player) {
         if (isSolved()) {
             player.sendSystemMessage(Component.literal("§a§l★ Puzzle completado ★"));
+            // Toggle de puertas al presionar el botón cuando ya está resuelto
+            toggleLinkedDoors();
+            player.sendSystemMessage(Component.literal("§e↔ Puertas toggled"));
         } else if (isLocked()) {
             player.sendSystemMessage(Component.literal("§c⏳ Panel bloqueado..."));
         } else {
@@ -405,5 +404,79 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
     @Override
     public boolean partHurt(MultiPart<PanelCodigoEntity> multiPart, @NotNull DamageSource damageSource, float v) {
         return false;
+    }
+
+    public void linkDoor(PuertaMetalicaEntity door, Vec3 roomCenter) {
+        if (door == null || roomCenter == null) return;
+
+        Vec3 relativePos = door.position().subtract(roomCenter);
+
+        if (!linkedDoors.contains(relativePos)) {
+            linkedDoors.add(relativePos);
+            updateAllLinkedDoors(); // aplicar estado actual
+        }
+    }
+
+    public void unlinkAllDoors() {
+        linkedDoors.clear();
+    }
+
+    public int getLinkedDoorsCount() {
+        return linkedDoors.size();
+    }
+
+    public List<Vec3> getLinkedDoors() {
+        return new ArrayList<>(linkedDoors);
+    }
+
+    public void updateAllLinkedDoors() {
+        if (linkedDoors.isEmpty()) return;
+
+        Vec3 panelPos = this.position();
+        boolean shouldOpen = isSolved();
+
+        for (Vec3 relPos : linkedDoors) {
+            Vec3 absolutePos = panelPos.add(relPos);
+
+            this.level().getEntitiesOfClass(PuertaMetalicaEntity.class,
+                            AABB.ofSize(absolutePos, 5, 5, 5),
+                            d -> d.position().distanceToSqr(absolutePos) < 3.0)
+                    .forEach(door -> door.setOpen(shouldOpen));
+        }
+    }
+
+    /**
+     * Toggle (abrir/cerrar) todas las puertas vinculadas
+     */
+    private void toggleLinkedDoors() {
+        if (linkedDoors.isEmpty()) return;
+
+        Vec3 panelPos = this.position();
+        // Usamos el estado contrario al actual de la primera puerta
+        boolean currentState = false;
+
+        // Buscar estado actual
+        for (Vec3 relPos : linkedDoors) {
+            Vec3 absolutePos = panelPos.add(relPos);
+            List<PuertaMetalicaEntity> doors = this.level().getEntitiesOfClass(
+                    PuertaMetalicaEntity.class,
+                    AABB.ofSize(absolutePos, 5, 5, 5),
+                    d -> d.position().distanceToSqr(absolutePos) < 3.0);
+
+            if (!doors.isEmpty()) {
+                currentState = doors.get(0).isOpen();
+                break;
+            }
+        }
+
+        boolean newState = !currentState;
+
+        for (Vec3 relPos : linkedDoors) {
+            Vec3 absolutePos = panelPos.add(relPos);
+            this.level().getEntitiesOfClass(PuertaMetalicaEntity.class,
+                            AABB.ofSize(absolutePos, 5, 5, 5),
+                            d -> d.position().distanceToSqr(absolutePos) < 3.0)
+                    .forEach(door -> door.setOpen(newState));
+        }
     }
 }

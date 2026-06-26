@@ -331,6 +331,7 @@ public class EscapeRoomManager {
         reLinkInterruptors(level, newCenterPos);
         reLinkRejas(level, newCenterPos);
         reLinkDoors(level, newCenterPos);
+        reLinkCodigoPanels(level, newCenterPos);
     }
 
     private static void reLinkPanels(ServerLevel level, BlockPos centerPos) {
@@ -433,6 +434,17 @@ public class EscapeRoomManager {
             if (panel.areBothPuzzlesSolved()) {
                 panel.updateAllLinkedDoors();
             } else {
+                panel.updateAllLinkedDoors();
+            }
+        }
+    }
+
+    private static void reLinkCodigoPanels(ServerLevel level, BlockPos centerPos) {
+        List<PanelCodigoEntity> panels = level.getEntitiesOfClass(
+                PanelCodigoEntity.class, new AABB(centerPos).inflate(150), p -> true);
+
+        for (PanelCodigoEntity panel : panels) {
+            if (panel.isSolved()) {
                 panel.updateAllLinkedDoors();
             }
         }

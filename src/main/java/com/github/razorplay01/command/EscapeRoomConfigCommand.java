@@ -160,6 +160,21 @@ public class EscapeRoomConfigCommand {
                                         )
                                 )
                         )
+                        .then(Commands.literal("panel_codigo")
+                                .then(Commands.argument("panel", EntityArgument.entity())
+                                        .then(Commands.literal("link")
+                                                .then(Commands.argument("puerta", EntityArgument.entity())
+                                                        .executes(EscapeRoomConfigCommand::linkDoorToCodigoPanel)
+                                                )
+                                        )
+                                        .then(Commands.literal("unlink")
+                                                .executes(EscapeRoomConfigCommand::unlinkAllDoorsFromCodigoPanel)
+                                        )
+                                        .then(Commands.literal("list")
+                                                .executes(EscapeRoomConfigCommand::listCodigoPanelDoors)
+                                        )
+                                )
+                        )
                 )
         );
     }
@@ -748,6 +763,65 @@ public class EscapeRoomConfigCommand {
             }
 
             context.getSource().sendFailure(Component.literal("§cLa entidad no es un Panel de Fusibles."));
+            return 0;
+        } catch (Exception e) {
+            context.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int linkDoorToCodigoPanel(CommandContext<CommandSourceStack> context) {
+        try {
+            Entity panelEntity = EntityArgument.getEntity(context, "panel");
+            Entity doorEntity = EntityArgument.getEntity(context, "puerta");
+
+            if (!(panelEntity instanceof PanelCodigoEntity panel)) {
+                context.getSource().sendFailure(Component.literal("§cLa entidad debe ser un Panel de Código."));
+                return 0;
+            }
+
+            if (!(doorEntity instanceof PuertaMetalicaEntity door)) {
+                context.getSource().sendFailure(Component.literal("§cLa segunda entidad debe ser una Puerta Metálica."));
+                return 0;
+            }
+
+            Vec3 roomCenter = panel.position();
+            panel.linkDoor(door, roomCenter);
+
+            context.getSource().sendSuccess(() -> Component.literal("§a✓ Puerta vinculada al Panel de Código."), true);
+            return 1;
+        } catch (Exception e) {
+            context.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int unlinkAllDoorsFromCodigoPanel(CommandContext<CommandSourceStack> context) {
+        try {
+            Entity entity = EntityArgument.getEntity(context, "panel");
+            if (entity instanceof PanelCodigoEntity panel) {
+                panel.unlinkAllDoors();
+                context.getSource().sendSuccess(() -> Component.literal("§aTodas las puertas vinculadas han sido eliminadas."), true);
+                return 1;
+            }
+            context.getSource().sendFailure(Component.literal("§cLa entidad no es un Panel de Código."));
+            return 0;
+        } catch (Exception e) {
+            context.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int listCodigoPanelDoors(CommandContext<CommandSourceStack> context) {
+        try {
+            Entity entity = EntityArgument.getEntity(context, "panel");
+            if (entity instanceof PanelCodigoEntity panel) {
+                context.getSource().sendSuccess(() -> Component.literal("§6=== Puertas Vinculadas (Panel Código) ==="), false);
+                context.getSource().sendSuccess(() -> Component.literal(
+                        "§ePuertas metálicas: §f" + panel.getLinkedDoorsCount()), false);
+                return 1;
+            }
+            context.getSource().sendFailure(Component.literal("§cLa entidad no es un Panel de Código."));
             return 0;
         } catch (Exception e) {
             context.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
