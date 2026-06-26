@@ -106,9 +106,7 @@ public class PuertaMetalicaEntity extends BaseEntity {
 
     @Override
     public void handleNormalInteract(Player player) {
-        if (!player.level().isClientSide) {
-            setOpen(!isOpen());
-        }
+        // []
     }
 
     // ==================== COLISIÓN SELECTIVA ====================

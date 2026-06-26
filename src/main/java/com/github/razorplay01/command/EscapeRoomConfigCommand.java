@@ -2,15 +2,19 @@ package com.github.razorplay01.command;
 
 import com.github.razorplay01.entity.custom.*;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
+
+import java.util.List;
 
 public class EscapeRoomConfigCommand {
 
@@ -108,11 +112,48 @@ public class EscapeRoomConfigCommand {
                                         )
                                 )
                         )
+                        .then(Commands.literal("valvula")
+                                .then(Commands.argument("valvula", EntityArgument.entity())
+                                        .then(Commands.literal("addparticle")
+                                                .then(Commands.argument("worldX", DoubleArgumentType.doubleArg())
+                                                        .then(Commands.argument("worldY", DoubleArgumentType.doubleArg())
+                                                                .then(Commands.argument("worldZ", DoubleArgumentType.doubleArg())
+                                                                        .then(Commands.argument("dirX", DoubleArgumentType.doubleArg())
+                                                                                .then(Commands.argument("dirY", DoubleArgumentType.doubleArg())
+                                                                                        .then(Commands.argument("dirZ", DoubleArgumentType.doubleArg())
+                                                                                                .then(Commands.argument("speed", DoubleArgumentType.doubleArg(0))
+                                                                                                        .then(Commands.argument("radius", DoubleArgumentType.doubleArg(0.1))
+                                                                                                                .then(Commands.argument("pushForce", DoubleArgumentType.doubleArg(0))
+                                                                                                                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 100))
+                                                                                                                                .executes(EscapeRoomConfigCommand::addParticleEmitter)
+                                                                                                                        )
+                                                                                                                        .executes(ctx -> addParticleEmitterWithDefaults(ctx, 5))
+                                                                                                                )
+                                                                                                        )
+                                                                                                )
+                                                                                        )
+                                                                                )
+                                                                        )
+                                                                )
+                                                        )
+                                                )
+                                        )
+                                        .then(Commands.literal("listparticles")
+                                                .executes(EscapeRoomConfigCommand::listParticleEmitters)
+                                        )
+                                        .then(Commands.literal("removeparticle")
+                                                .then(Commands.argument("index", IntegerArgumentType.integer(0))
+                                                        .executes(EscapeRoomConfigCommand::removeParticleEmitter)
+                                                )
+                                        )
+                                        .then(Commands.literal("clearparticles")
+                                                .executes(EscapeRoomConfigCommand::clearParticleEmitters)
+                                        )
+                                )
+                        )
                 )
         );
     }
-
-    // ====================== PANEL FUSIBLES ======================
 
     private static int linkTurtleToPanel(CommandContext<CommandSourceStack> context) {
         try {
@@ -130,7 +171,7 @@ public class EscapeRoomConfigCommand {
                 return 0;
             }
 
-            Vec3 roomCenter = panel.position(); // Fallback actual. Puedes mejorarlo pasando el centro del room.
+            Vec3 roomCenter = panel.position();
 
             panel.linkTurtle(puzzleId, turtle, roomCenter);
 
@@ -274,7 +315,6 @@ public class EscapeRoomConfigCommand {
                 return 0;
             }
 
-            // Usar reflexión o añadir métodos públicos en Cuadro1Entity
             cuadro.resetPuzzleState();
 
             context.getSource().sendSuccess(() -> Component.literal(
@@ -347,7 +387,6 @@ public class EscapeRoomConfigCommand {
             return 0;
         }
     }
-    // ====================== INTERRUPTOR INDUSTRIAL ======================
 
     private static int linkCableToInterruptor(CommandContext<CommandSourceStack> context) {
         try {
@@ -495,5 +534,149 @@ public class EscapeRoomConfigCommand {
             context.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
             return 0;
         }
+    }
+
+    private static int addParticleEmitter(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        Entity entity = EntityArgument.getEntity(ctx, "valvula");
+        if (!(entity instanceof ValvulaEntity valvula)) {
+            ctx.getSource().sendFailure(Component.literal("§cLa entidad no es una válvula."));
+            return 0;
+        }
+
+        double worldX = DoubleArgumentType.getDouble(ctx, "worldX");
+        double worldY = DoubleArgumentType.getDouble(ctx, "worldY");
+        double worldZ = DoubleArgumentType.getDouble(ctx, "worldZ");
+        double dirX = DoubleArgumentType.getDouble(ctx, "dirX");
+        double dirY = DoubleArgumentType.getDouble(ctx, "dirY");
+        double dirZ = DoubleArgumentType.getDouble(ctx, "dirZ");
+        double speed = DoubleArgumentType.getDouble(ctx, "speed");
+        double radius = DoubleArgumentType.getDouble(ctx, "radius");
+        double pushForce = DoubleArgumentType.getDouble(ctx, "pushForce");
+        int count = IntegerArgumentType.getInteger(ctx, "count");
+
+        ValvulaEntity.ParticleEmitter emitter = ValvulaEntity.ParticleEmitter.fromWorldCoordinates(
+                valvula,
+                worldX, worldY, worldZ,
+                dirX, dirY, dirZ,
+                speed, radius, pushForce, count
+        );
+
+        valvula.addParticleEmitter(emitter);
+
+        int index = valvula.getParticleEmitters().size() - 1;
+
+        ctx.getSource().sendSuccess(() -> Component.literal(
+                "§a✔ Emisor añadido [" + index + "]\n" +
+                        "§7  Mundo: §f" + String.format("%.2f, %.2f, %.2f", worldX, worldY, worldZ) + "\n" +
+                        "§7  Relativo: §f" + String.format("%.2f, %.2f, %.2f", emitter.offsetX, emitter.offsetY, emitter.offsetZ) + "\n" +
+                        "§7  Dir: §f" + String.format("%.2f, %.2f, %.2f", dirX, dirY, dirZ) + "\n" +
+                        "§7  Speed: §f" + speed + " §7| Count: §f" + count + "\n" +
+                        "§7  Radius: §f" + radius + " §7| PushForce: §f" + pushForce
+        ), false);
+        return 1;
+    }
+
+    private static int addParticleEmitterWithDefaults(CommandContext<CommandSourceStack> ctx, int defaultCount) throws CommandSyntaxException {
+        Entity entity = EntityArgument.getEntity(ctx, "valvula");
+        if (!(entity instanceof ValvulaEntity valvula)) {
+            ctx.getSource().sendFailure(Component.literal("§cLa entidad no es una válvula."));
+            return 0;
+        }
+
+        double worldX = DoubleArgumentType.getDouble(ctx, "worldX");
+        double worldY = DoubleArgumentType.getDouble(ctx, "worldY");
+        double worldZ = DoubleArgumentType.getDouble(ctx, "worldZ");
+        double dirX = DoubleArgumentType.getDouble(ctx, "dirX");
+        double dirY = DoubleArgumentType.getDouble(ctx, "dirY");
+        double dirZ = DoubleArgumentType.getDouble(ctx, "dirZ");
+        double speed = DoubleArgumentType.getDouble(ctx, "speed");
+        double radius = DoubleArgumentType.getDouble(ctx, "radius");
+        double pushForce = DoubleArgumentType.getDouble(ctx, "pushForce");
+
+        ValvulaEntity.ParticleEmitter emitter = ValvulaEntity.ParticleEmitter.fromWorldCoordinates(
+                valvula,
+                worldX, worldY, worldZ,
+                dirX, dirY, dirZ,
+                speed, radius, pushForce, defaultCount
+        );
+
+        valvula.addParticleEmitter(emitter);
+
+        int index = valvula.getParticleEmitters().size() - 1;
+        ctx.getSource().sendSuccess(() -> Component.literal(
+                "§a✔ Emisor añadido [" + index + "] con count: " + defaultCount
+        ), false);
+        return 1;
+    }
+
+    private static int listParticleEmitters(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        Entity entity = EntityArgument.getEntity(ctx, "valvula");
+        if (!(entity instanceof ValvulaEntity valvula)) {
+            ctx.getSource().sendFailure(Component.literal("§cLa entidad no es una válvula."));
+            return 0;
+        }
+
+        List<ValvulaEntity.ParticleEmitter> emitters = valvula.getParticleEmitters();
+
+        if (emitters.isEmpty()) {
+            ctx.getSource().sendSuccess(() -> Component.literal("§eNo hay emisores configurados."), false);
+            return 1;
+        }
+
+        StringBuilder sb = new StringBuilder("§6=== Emisores de Partículas ===\n");
+        sb.append("§7State: ").append(valvula.getState()).append("/3");
+        sb.append(" | Activas: ").append(valvula.areParticlesActive() ? "§aSí" : "§cNo").append("\n\n");
+
+        for (int i = 0; i < emitters.size(); i++) {
+            ValvulaEntity.ParticleEmitter e = emitters.get(i);
+            Vec3 worldPos = e.getWorldPosition(valvula);
+            Vec3 worldDir = e.getWorldDirection(valvula);
+
+            sb.append(String.format("§e[%d]\n", i));
+            sb.append(String.format("  §7Offset local: §f%.2f, %.2f, %.2f\n", e.offsetX, e.offsetY, e.offsetZ));
+            sb.append(String.format("  §7Pos mundo:    §f%.2f, %.2f, %.2f\n", worldPos.x, worldPos.y, worldPos.z));
+            sb.append(String.format("  §7Dir local:    §f%.2f, %.2f, %.2f\n", e.dirX, e.dirY, e.dirZ));
+            sb.append(String.format("  §7Dir mundo:    §f%.2f, %.2f, %.2f\n", worldDir.x, worldDir.y, worldDir.z));
+            sb.append(String.format("  §7Speed: §f%.3f §7| Count: §f%d\n", e.speed, e.count));
+            sb.append(String.format("  §7Radius: §f%.2f §7| PushForce: §f%.2f\n\n", e.radius, e.pushForce));
+        }
+
+        String finalMsg = sb.toString();
+        ctx.getSource().sendSuccess(() -> Component.literal(finalMsg), false);
+        return 1;
+    }
+
+    private static int removeParticleEmitter(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        Entity entity = EntityArgument.getEntity(ctx, "valvula");
+        if (!(entity instanceof ValvulaEntity valvula)) {
+            ctx.getSource().sendFailure(Component.literal("§cLa entidad no es una válvula."));
+            return 0;
+        }
+
+        int index = IntegerArgumentType.getInteger(ctx, "index");
+
+        if (index < 0 || index >= valvula.getParticleEmitters().size()) {
+            ctx.getSource().sendFailure(Component.literal(
+                    "§cÍndice inválido. Rango: 0-" + (valvula.getParticleEmitters().size() - 1)
+            ));
+            return 0;
+        }
+
+        valvula.removeParticleEmitter(index);
+        ctx.getSource().sendSuccess(() -> Component.literal("§a✔ Emisor [" + index + "] eliminado."), false);
+        return 1;
+    }
+
+    private static int clearParticleEmitters(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        Entity entity = EntityArgument.getEntity(ctx, "valvula");
+        if (!(entity instanceof ValvulaEntity valvula)) {
+            ctx.getSource().sendFailure(Component.literal("§cLa entidad no es una válvula."));
+            return 0;
+        }
+
+        int count = valvula.getParticleEmitters().size();
+        valvula.clearParticleEmitters();
+        ctx.getSource().sendSuccess(() -> Component.literal("§a✔ " + count + " emisores eliminados."), false);
+        return 1;
     }
 }
