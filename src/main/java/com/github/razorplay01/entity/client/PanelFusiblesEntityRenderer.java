@@ -6,8 +6,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.cache.object.GeoBone;
@@ -27,6 +25,15 @@ public class PanelFusiblesEntityRenderer extends GeoEntityRenderer<PanelFusibles
                                @Nullable VertexConsumer buffer, boolean isReRender,
                                float partialTick, int packedLight, int packedOverlay,
                                int colour) {
+        Optional<GeoBone> lOff = model.getBone("luz_izquierda_apagada");
+        Optional<GeoBone> lOn = model.getBone("luz_izquierda_encendida");
+        Optional<GeoBone> rOn = model.getBone("luz_derecha_encendida");
+        Optional<GeoBone> rOff = model.getBone("luz_derecha_apagada");
+
+        lOff.ifPresent(geoBone -> geoBone.setHidden(entity.areAllSlotsFilled(2)));
+        lOn.ifPresent(geoBone -> geoBone.setHidden(!entity.areAllSlotsFilled(2)));
+        rOff.ifPresent(geoBone -> geoBone.setHidden(entity.areAllSlotsFilled(1)));
+        rOn.ifPresent(geoBone -> geoBone.setHidden(!entity.areAllSlotsFilled(1)));
 
         // Antes de renderizar, configurar visibilidad de los huesos de fusible
         for (int i = 0; i < PanelFusiblesEntity.FUSE_BONE_NAMES.length; i++) {
@@ -36,14 +43,7 @@ public class PanelFusiblesEntityRenderer extends GeoEntityRenderer<PanelFusibles
             if (boneOpt.isPresent()) {
                 GeoBone bone = boneOpt.get();
                 int fuseType = entity.getFuseSlot(i);
-
-                if (fuseType == PanelFusiblesEntity.FUSE_NONE) {
-                    // Sin fusible → ocultar el hueso
-                    bone.setHidden(true);
-                } else {
-                    // Con fusible → mostrar el hueso
-                    bone.setHidden(false);
-                }
+                bone.setHidden(fuseType == PanelFusiblesEntity.FUSE_NONE);
             }
         }
 

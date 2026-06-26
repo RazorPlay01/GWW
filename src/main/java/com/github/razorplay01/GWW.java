@@ -79,6 +79,11 @@ public class GWW implements ModInitializer, ClientModInitializer {
         FabricDefaultAttributeRegistry.register(ModEntities.MANIVELA, ManivelaEntity.setAttributes());
         FabricDefaultAttributeRegistry.register(ModEntities.VALVULA, ValvulaEntity.setAttributes());
         FabricDefaultAttributeRegistry.register(ModEntities.PALANCA, PalancaEntity.setAttributes());
+        FabricDefaultAttributeRegistry.register(ModEntities.ESCALERA, EscaleraEntity.setAttributes());
+        FabricDefaultAttributeRegistry.register(ModEntities.CABLE, CableEntity.setAttributes());
+        FabricDefaultAttributeRegistry.register(ModEntities.PUERTA_JAULA, PuertaJaulaEntity.setAttributes());
+        FabricDefaultAttributeRegistry.register(ModEntities.PANEL_ENERGIA, PanelEnergiaEntity.setAttributes());
+        FabricDefaultAttributeRegistry.register(ModEntities.PANEL_CODIGO, PanelCodigoEntity.setAttributes());
         LOGGER.info("Hello Fabric world!");
     }
 
@@ -104,6 +109,11 @@ public class GWW implements ModInitializer, ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.MANIVELA, ManivelaEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.VALVULA, ValvulaEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.PALANCA, PalancaEntityRenderer::new);
+        EntityRendererRegistry.register(ModEntities.ESCALERA, EscaleraEntityRenderer::new);
+        EntityRendererRegistry.register(ModEntities.CABLE, CableEntityRenderer::new);
+        EntityRendererRegistry.register(ModEntities.PUERTA_JAULA, PuertaJaulaEntityRenderer::new);
+        EntityRendererRegistry.register(ModEntities.PANEL_ENERGIA, PanelEnergiaEntityRenderer::new);
+        EntityRendererRegistry.register(ModEntities.PANEL_CODIGO, PanelCodigoEntityRenderer::new);
         NoiseHudRenderer.register();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player != null) {

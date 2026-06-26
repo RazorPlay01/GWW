@@ -1,6 +1,8 @@
 package com.github.razorplay01.entity.custom;
 
+import com.github.razorplay01.item.ModItems;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -10,6 +12,7 @@ import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import software.bernie.geckolib.animation.AnimatableManager;
 import software.bernie.geckolib.animation.AnimationController;
@@ -73,7 +76,29 @@ public class PuertaAticoEntity extends BaseEntity {
     @Override
     public void handleNormalInteract(Player player) {
         if (!player.level().isClientSide) {
-            setOpen(!isOpen());
+            if (!isOpen()) {
+                if (hasRequiredItem(player)) {
+                    consumeRequiredItem(player);
+                    setOpen(true);
+                    player.sendSystemMessage(Component.literal("§a¡Has abierto la puerta del ático!"));
+                } else {
+                    player.sendSystemMessage(Component.literal("§cNecesitas un §bobjeto §cpara abrir esta puerta"));
+                }
+            }
+        }
+    }
+
+    private boolean hasRequiredItem(Player player) {
+        return player.getInventory().contains(new ItemStack(ModItems.LLAVE_ATICO));
+    }
+
+    private void consumeRequiredItem(Player player) {
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.is(ModItems.LLAVE_ATICO)) {
+                stack.shrink(1);
+                return;
+            }
         }
     }
 

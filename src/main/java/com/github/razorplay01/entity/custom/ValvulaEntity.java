@@ -18,6 +18,7 @@ import software.bernie.geckolib.animation.AnimationController;
 import software.bernie.geckolib.animation.PlayState;
 import software.bernie.geckolib.animation.RawAnimation;
 
+//todo: agregar particulas con empuje en coordenadas relativas a esta entidad
 public class ValvulaEntity extends BaseEntity {
 
     private static final EntityDataAccessor<Integer> DATA_TYPE =

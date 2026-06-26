@@ -1,5 +1,6 @@
 package com.github.razorplay01.entity.custom;
 
+import com.github.razorplay01.entity.ModEntities;
 import com.github.razorplay01.item.ModItems;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -26,6 +27,7 @@ import software.bernie.geckolib.animation.RawAnimation;
 import java.util.ArrayList;
 import java.util.List;
 
+//todo: cambair zombie por manivela
 public class CajaEntity extends BaseEntity {
 
     private static final EntityDataAccessor<Boolean> IS_OPEN = SynchedEntityData.defineId(CajaEntity.class, EntityDataSerializers.BOOLEAN);
@@ -123,14 +125,20 @@ public class CajaEntity extends BaseEntity {
     }
 
     private void checkForInteractiveEntityCollision() {
-        AABB boundingBox = this.getBoundingBox();
+        /*AABB boundingBox = this.getBoundingBox();
         List<Entity> nearby = this.level().getEntities(this, boundingBox,
                 PalancaEntity.class::isInstance);
 
         if (!nearby.isEmpty()) {
             setOpen(true);
             onOpenedByCollision((PalancaEntity) nearby.getFirst());
-        }
+        }*/
+
+        this.level().getEntitiesOfClass(PalancaEntity.class, this.getBoundingBox().inflate(0.5D))
+                .forEach(palancaEntity -> {
+                    setOpen(true);
+                    onOpenedByCollision(palancaEntity);
+                });
     }
 
     protected void onOpenedByCollision(PalancaEntity triggerEntity) {
@@ -194,26 +202,14 @@ public class CajaEntity extends BaseEntity {
         this.level().playSound(null, this.blockPosition(), SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.8F, 0.6F);
     }
 
-    //TODO: cambiar entidad por valvula
     private void spawnSpecialEntity() {
-        // === CAMBIA ESTO por la entidad que quieras spawnear ===
-        // Ejemplo:
-        // Entity specialEntity = ModEntities.TU_ENTIDAD.get().create(this.level());
-
-        // Por ahora dejo un ejemplo con un zombie. Cámbialo:
-        Entity specialEntity = EntityType.ZOMBIE.create(this.level());
+        Entity specialEntity = ModEntities.VALVULA.create(this.level());
 
         if (specialEntity != null) {
             Vec3 spawnPos = this.position().add(0, 0.2, 0);
             specialEntity.setPos(spawnPos.x, spawnPos.y, spawnPos.z);
-
-            // Opcional: darle un pequeño impulso
             specialEntity.setDeltaMovement(0, 0.4, 0);
-
             this.level().addFreshEntity(specialEntity);
-
-            // Sonido especial para la entidad
-            this.level().playSound(null, this.blockPosition(), SoundEvents.WARDEN_EMERGE, SoundSource.BLOCKS, 1.0F, 1.0F);
         }
     }
 

@@ -64,8 +64,8 @@ public class LuzTortugaEntity extends BaseEntity {
     @Override
     public void handleNormalInteract(Player player) {
         // Ejemplo: clic derecho cambia de estado (opcional)
-        if (!player.level().isClientSide) {
+        /*if (!player.level().isClientSide) {
             setState((getState() + 1) % 3);
-        }
+        }*/
     }
 }

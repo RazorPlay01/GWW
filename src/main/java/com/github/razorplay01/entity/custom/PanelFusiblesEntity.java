@@ -31,7 +31,11 @@ import software.bernie.geckolib.animation.AnimatableManager;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
+
+import static com.github.razorplay01.entity.custom.util.Util.loadLinkedList;
+import static com.github.razorplay01.entity.custom.util.Util.saveLinkedList;
+
+// todo: vincular con puerta metalica
 
 public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPartEntity<PanelFusiblesEntity> {
     private EntityHitboxData<PanelFusiblesEntity> hitboxData;
@@ -151,7 +155,7 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
         }
     }
 
-    private boolean areAllSlotsFilled(int puzzleId) {
+    public boolean areAllSlotsFilled(int puzzleId) {
         if (puzzleId == 1) {
             return hasSlot(0) && hasSlot(1) && hasSlot(2);
         } else {
@@ -450,18 +454,6 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
         saveLinkedList(tag, "LinkedPuzzle2", linkedTurtlesPuzzle2);
     }
 
-    private void saveLinkedList(CompoundTag tag, String key, List<Vec3> list) {
-        ListTag listTag = new ListTag();
-        for (Vec3 vec : list) {
-            CompoundTag vecTag = new CompoundTag();
-            vecTag.putDouble("x", vec.x);
-            vecTag.putDouble("y", vec.y);
-            vecTag.putDouble("z", vec.z);
-            listTag.add(vecTag);
-        }
-        tag.put(key, listTag);
-    }
-
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
@@ -485,22 +477,6 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
 
         linkedTurtlesPuzzle2.clear();
         linkedTurtlesPuzzle2.addAll(loadLinkedList(tag, "LinkedPuzzle2"));
-    }
-
-    private List<Vec3> loadLinkedList(CompoundTag tag, String key) {
-        List<Vec3> list = new ArrayList<>();
-        if (tag.contains(key, Tag.TAG_LIST)) {
-            ListTag listTag = tag.getList(key, Tag.TAG_COMPOUND);
-            for (int i = 0; i < listTag.size(); i++) {
-                CompoundTag vecTag = listTag.getCompound(i);
-                list.add(new Vec3(
-                        vecTag.getDouble("x"),
-                        vecTag.getDouble("y"),
-                        vecTag.getDouble("z")
-                ));
-            }
-        }
-        return list;
     }
 
     // ==================== ANIMACIÓN ====================

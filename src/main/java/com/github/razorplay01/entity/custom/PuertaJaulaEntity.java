@@ -1,8 +1,9 @@
 package com.github.razorplay01.entity.custom;
 
-import com.github.razorplay01.entity.custom.util.Util;
+import com.github.razorplay01.item.ModItems;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -12,33 +13,26 @@ import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import software.bernie.geckolib.animation.AnimatableManager;
 import software.bernie.geckolib.animation.AnimationController;
 import software.bernie.geckolib.animation.RawAnimation;
 
-import java.util.ArrayList;
-import java.util.List;
-
-// todo: esta roto el vinculo
-// me funciona bien a mi en ide
-public class RejaDuctoEntity extends BaseEntity {
+public class PuertaJaulaEntity extends BaseEntity {
 
     private static final EntityDataAccessor<Boolean> IS_OPEN = SynchedEntityData.defineId(
-            RejaDuctoEntity.class, EntityDataSerializers.BOOLEAN);
+            PuertaJaulaEntity.class, EntityDataSerializers.BOOLEAN);
 
     private static final EntityDataAccessor<Direction> DATA_FACING =
-            SynchedEntityData.defineId(RejaDuctoEntity.class, EntityDataSerializers.DIRECTION);
+            SynchedEntityData.defineId(PuertaJaulaEntity.class, EntityDataSerializers.DIRECTION);
 
     private static final RawAnimation ANIMATION_IDLE = RawAnimation.begin().thenLoop("animation.idle");
     private static final RawAnimation ANIMATION_OPEN = RawAnimation.begin().thenPlayAndHold("animation.open");
 
-    private final List<Vec3> linkedPowerPanels = new ArrayList<>();
-
-    public RejaDuctoEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
+    public PuertaJaulaEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
         super(entityType, level);
     }
 
@@ -47,14 +41,6 @@ public class RejaDuctoEntity extends BaseEntity {
         super.defineSynchedData(builder);
         builder.define(IS_OPEN, false);
         builder.define(DATA_FACING, Direction.NORTH);
-    }
-
-    public boolean isOpen() {
-        return this.entityData.get(IS_OPEN);
-    }
-
-    public void setOpen(boolean open) {
-        this.entityData.set(IS_OPEN, open);
     }
 
     public Direction getFacing() {
@@ -68,61 +54,25 @@ public class RejaDuctoEntity extends BaseEntity {
         }
     }
 
-    // ==================== LINKING ====================
-
-    public void linkPowerPanel(PanelEnergiaEntity panel, Vec3 roomCenter) {
-        if (panel == null || roomCenter == null) return;
-        Vec3 relativePos = panel.position().subtract(roomCenter);
-        if (!linkedPowerPanels.contains(relativePos)) {
-            linkedPowerPanels.add(relativePos);
-        }
-    }
-
-    public void unlinkAllPowerPanels() {
-        linkedPowerPanels.clear();
-    }
-
-    public boolean isPowerPanelActive() {
-        if (linkedPowerPanels.isEmpty()) return true;
-
-        Vec3 rejaPos = this.position();
-
-        for (Vec3 relPos : linkedPowerPanels) {
-            Vec3 absolutePos = rejaPos.add(relPos);
-            List<PanelEnergiaEntity> panels = this.level().getEntitiesOfClass(PanelEnergiaEntity.class,
-                    AABB.ofSize(absolutePos, 5, 5, 5),
-                    p -> p.position().distanceToSqr(absolutePos) < 2.5);
-
-            if (!panels.isEmpty() && panels.get(0).isActive()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Método llamado automáticamente cuando el panel se activa
-     */
-    public void tryOpenAutomatically() {
-        if (!isOpen() && isPowerPanelActive()) {
-            setOpen(true);
-            // Opcional: mensaje global o partículas
-        }
-    }
-
     @Override
-    public void handleNormalInteract(Player player) {
-      // []
+    public void setYRot(float yaw) {
+        super.setYRot(yaw);
+        setFacing(Direction.fromYRot(yaw));
     }
 
-    // ==================== PERSISTENCIA ====================
+    public boolean isOpen() {
+        return this.entityData.get(IS_OPEN);
+    }
+
+    public void setOpen(boolean open) {
+        this.entityData.set(IS_OPEN, open);
+    }
 
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putBoolean("IsOpen", isOpen());
         tag.putString("Facing", getFacing().getSerializedName());
-        Util.saveLinkedList(tag, "LinkedPowerPanels", linkedPowerPanels);
     }
 
     @Override
@@ -131,10 +81,10 @@ public class RejaDuctoEntity extends BaseEntity {
         setOpen(tag.getBoolean("IsOpen"));
         if (tag.contains("Facing")) {
             Direction dir = Direction.byName(tag.getString("Facing"));
-            if (dir != null) setFacing(dir);
+            if (dir != null) {
+                setFacing(dir);
+            }
         }
-        linkedPowerPanels.clear();
-        linkedPowerPanels.addAll(Util.loadLinkedList(tag, "LinkedPowerPanels"));
     }
 
     public static AttributeSupplier.Builder setAttributes() {
@@ -146,20 +96,47 @@ public class RejaDuctoEntity extends BaseEntity {
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(
                 this,
-                "reja_controller",
+                "puerta_controller",
                 0,
-                state -> isOpen() ? state.setAndContinue(ANIMATION_OPEN) : state.setAndContinue(ANIMATION_IDLE)
+                state -> isOpen()
+                        ? state.setAndContinue(ANIMATION_OPEN)
+                        : state.setAndContinue(ANIMATION_IDLE)
         ));
     }
 
-    public List<Vec3> getLinkedPowerPanels() {
-        return linkedPowerPanels;
+    @Override
+    public void handleNormalInteract(Player player) {
+        if (!player.level().isClientSide) {
+            if (!isOpen()) {
+                if (hasRequiredItem(player)) {
+                    consumeRequiredItem(player);
+                    setOpen(true);
+                    player.sendSystemMessage(Component.literal("§a¡Has abierto la puerta!"));
+                } else {
+                    player.sendSystemMessage(Component.literal("§cNecesitas un §bobjeto §cpara abrir esta puerta"));
+                }
+            }
+        }
     }
 
-    // ==================== COLISIÓN ====================
+    private boolean hasRequiredItem(Player player) {
+        return player.getInventory().contains(new ItemStack(ModItems.GANZUA));
+    }
+
+    private void consumeRequiredItem(Player player) {
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.is(ModItems.GANZUA)) {
+                stack.shrink(1);
+                return;
+            }
+        }
+    }
+
+    // ==================== COLISIÓN SELECTIVA ====================
     @Override
     public boolean canBeCollidedWith() {
-        return !isOpen();
+        return !isOpen();           // Permite pasar cuando está abierta
     }
 
     @Override
@@ -169,12 +146,17 @@ public class RejaDuctoEntity extends BaseEntity {
 
     @Override
     public void push(Entity entity) {
-        if (!isOpen()) super.push(entity);
+        // No empuja al jugador cuando está abierta
+        if (!isOpen()) {
+            super.push(entity);
+        }
     }
 
     @Override
     protected void pushEntities() {
-        if (!isOpen()) super.pushEntities();
+        if (!isOpen()) {
+            super.pushEntities();
+        }
     }
 
     @Override
@@ -186,19 +168,15 @@ public class RejaDuctoEntity extends BaseEntity {
     }
 
     @Override
-    public void setYRot(float yaw) {
-        super.setYRot(yaw);
-        setFacing(Direction.fromYRot(yaw));
-    }
-
-    @Override
     protected @NotNull AABB makeBoundingBox() {
         double x = this.getX();
         double y = this.getY();
         double z = this.getZ();
-        double height = 4.0;
-        double width = 4.0;
-        double depth = 0.5;
+
+        double height = 2.0;
+        double width = 1.0;
+        double depth = 0.4;
+
         double hw = width / 2.0;
         double hd = depth / 2.0;
 

@@ -82,7 +82,7 @@ public class ModEntities {
     public static final EntityType<ManivelaEntity> MANIVELA = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "manivela"),
             EntityType.Builder.of(ManivelaEntity::new, MobCategory.MISC)
-                    .sized(0.8f, 0.5f).build());
+                    .sized(1f, 1f).build());
     public static final EntityType<PalancaEntity> PALANCA = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "palanca"),
             EntityType.Builder.of(PalancaEntity::new, MobCategory.MISC)
@@ -91,7 +91,27 @@ public class ModEntities {
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "valvula"),
             EntityType.Builder.of(ValvulaEntity::new, MobCategory.MISC)
                     .sized(1f, 1f).build());
-
+    public static final EntityType<EscaleraEntity> ESCALERA = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "escalera"),
+            EntityType.Builder.of(EscaleraEntity::new, MobCategory.MISC)
+                    .sized(1f, 2.2f).build());
+    public static final EntityType<CableEntity> CABLE = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "cable"),
+            EntityType.Builder.of(CableEntity::new, MobCategory.MISC)
+                    .sized(1f, 1f).build());
+    public static final EntityType<PuertaJaulaEntity> PUERTA_JAULA = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "puerta_jaula"),
+            EntityType.Builder.of(PuertaJaulaEntity::new, MobCategory.MISC)
+                    .sized(0.4f, 2f).build());
+    public static final EntityType<PanelEnergiaEntity> PANEL_ENERGIA = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "panel_energia"),
+            EntityType.Builder.of(PanelEnergiaEntity::new, MobCategory.MISC)
+                    .sized(1f, 1f).build());
+    public static final EntityType<PanelCodigoEntity> PANEL_CODIGO = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "panel_codigo"),
+            EntityType.Builder.of(PanelCodigoEntity::new, MobCategory.MISC)
+                    .sized(0.8f, 0.7f).build());
+//todo: panel figuras interactuable y puerta metalica
     /*public static final EntityType<MysticOrbEntity> MYSTIC_ORB = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "mystic_orb"),
             EntityType.Builder.of(MysticOrbEntity::new, MobCategory.MISC)

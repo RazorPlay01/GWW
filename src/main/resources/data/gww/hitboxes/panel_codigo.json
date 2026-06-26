@@ -1,0 +1,34 @@
+{
+	"elements": [
+		{
+			"name": "circulo",
+			"pos": [-2, 9, 2.06],
+			"width": 3,
+			"height": 3
+		},
+		{
+			"name": "cuadrado",
+			"pos": [2, 9, 2.06],
+			"width": 3,
+			"height": 3
+		},
+		{
+			"name": "triangulo",
+			"pos": [2, 5, 2.06],
+			"width": 3,
+			"height": 3
+		},
+		{
+			"name": "hexagono",
+			"pos": [-2, 5, 2.06],
+			"width": 3,
+			"height": 3
+		},
+		{
+			"name": "button",
+			"pos": [0, 1, 1.06],
+			"width": 11,
+			"height": 2
+		}
+	]
+}

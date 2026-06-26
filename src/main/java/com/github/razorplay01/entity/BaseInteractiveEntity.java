@@ -10,6 +10,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -58,6 +59,10 @@ public class BaseInteractiveEntity extends BaseEntity {
                 Player player = getBoundPlayer();
                 if (player != null && player.isAlive()) {
                     updatePositionNearPlayer(player);
+                    if (this.horizontalCollision || this.verticalCollision) {
+                        this.setDeltaMovement(0, 0.1, 0);
+                        this.move(MoverType.SELF, this.getDeltaMovement());
+                    }
                 } else {
                     unbind();
                 }
@@ -93,14 +98,34 @@ public class BaseInteractiveEntity extends BaseEntity {
     private void updatePositionNearPlayer(Player player) {
         Vec3 look = player.getLookAngle().normalize();
 
+        // Posición objetivo ideal
         double targetX = player.getX() + look.x * DISTANCE_FROM_PLAYER;
         double targetY = player.getY() + player.getEyeHeight() * 0.6 + look.y * DISTANCE_FROM_PLAYER * 0.75;
         double targetZ = player.getZ() + look.z * DISTANCE_FROM_PLAYER;
 
-        this.setPos(targetX, targetY, targetZ);
-        this.setDeltaMovement(0, 0, 0);
+        Vec3 targetPos = new Vec3(targetX, targetY, targetZ);
+        Vec3 currentPos = this.position();
 
+        // Vector de movimiento hacia la posición objetivo
+        Vec3 movement = targetPos.subtract(currentPos);
+
+        // === MOVIMIENTO CON COLISIONES ===
+        this.move(MoverType.SELF, movement);
+
+        // Si después del movimiento sigue habiendo colisión con el jugador o bloques, ajustamos
+        if (this.position().distanceTo(player.position()) < 0.8) {
+            // Demasiado cerca → empujamos un poco hacia afuera
+            Vec3 push = this.position().subtract(player.position()).normalize().scale(0.9);
+            this.move(MoverType.SELF, push);
+        }
+
+        // Actualizamos rotación para que mire al jugador
+        updateRotationTowardsPlayer(player);
+    }
+
+    private void updateRotationTowardsPlayer(Player player) {
         Vec3 toPlayer = player.position().subtract(this.position()).normalize();
+
         if (toPlayer.lengthSqr() > 0.001) {
             float yaw = (float) (Math.atan2(toPlayer.z, toPlayer.x) * (180.0 / Math.PI)) - 90.0F;
             float pitch = (float) (-Math.asin(toPlayer.y / toPlayer.length()) * (180.0 / Math.PI));
@@ -109,6 +134,8 @@ public class BaseInteractiveEntity extends BaseEntity {
             this.setXRot(pitch);
             this.yRotO = yaw;
             this.xRotO = pitch;
+            this.yHeadRot = yaw;
+            this.yHeadRotO = yaw;
         }
     }
 
@@ -151,6 +178,9 @@ public class BaseInteractiveEntity extends BaseEntity {
         this.cachedBoundPlayer = player;
         this.entityData.set(BOUND, true);
         this.setNoGravity(true);
+
+        this.setInvulnerable(true);
+        this.noPhysics = false;
     }
 
     public void unbind() {

@@ -1,7 +1,6 @@
 package com.github.razorplay01;
 
-import com.github.razorplay01.entity.custom.Cuadro1Entity;
-import com.github.razorplay01.entity.custom.PanelFusiblesEntity;
+import com.github.razorplay01.entity.custom.*;
 import lombok.Getter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.*;
@@ -303,6 +302,11 @@ public class EscapeRoomManager {
                 Entity entity = EntityType.loadEntityRecursive(entityTag, level, e -> e);
                 if (entity != null) {
                     level.addFreshEntity(entity);
+                    if (entity instanceof InterruptorIndustrialEntity interruptor) {
+                        if (interruptor.isOn() && !interruptor.areAllCablesReady()) {
+                            interruptor.setState(0);
+                        }
+                    }
 
                     // Post-procesamiento para entidades de puzzle
                     if (entity instanceof Cuadro1Entity cuadro && snapshot.isHasPuzzleData()) {
@@ -324,7 +328,10 @@ public class EscapeRoomManager {
             }
         }
         reLinkPanels(level, newCenterPos);
+        reLinkInterruptors(level, newCenterPos);
+        reLinkRejas(level, newCenterPos);
     }
+
     private static void reLinkPanels(ServerLevel level, BlockPos centerPos) {
         level.getEntitiesOfClass(PanelFusiblesEntity.class,
                         new AABB(centerPos).inflate(150), p -> true)
@@ -337,6 +344,83 @@ public class EscapeRoomManager {
                     int state2 = calculatePuzzleState(panel, 2);
                     panel.updateLinkedTurtles(2, state2);
                 });
+    }
+
+    private static void reLinkInterruptors(ServerLevel level, BlockPos centerPos) {
+        List<InterruptorIndustrialEntity> interruptors = level.getEntitiesOfClass(
+                InterruptorIndustrialEntity.class,
+                new AABB(centerPos).inflate(150),
+                i -> true
+        );
+
+        List<CableEntity> allCables = level.getEntitiesOfClass(
+                CableEntity.class,
+                new AABB(centerPos).inflate(150),
+                c -> true
+        );
+
+        for (InterruptorIndustrialEntity interruptor : interruptors) {
+            // Guardar las posiciones relativas originales ANTES de limpiar
+            List<Vec3> savedRelPositions = new ArrayList<>(interruptor.getLinkedCables());
+
+            interruptor.unlinkAllCables();
+
+            for (Vec3 relPos : savedRelPositions) {
+                // relPos es relativo al interruptor, calcular posición absoluta del cable esperado
+                Vec3 expectedCablePos = interruptor.position().add(relPos);
+
+                // Buscar cable cercano a esa posición
+                CableEntity closest = null;
+                double closestDist = 4.0; // umbral máximo
+
+                for (CableEntity cable : allCables) {
+                    double dist = cable.position().distanceToSqr(expectedCablePos);
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closest = cable;
+                    }
+                }
+
+                if (closest != null) {
+                    interruptor.linkCable(closest); // sin roomCenter, relativo al interruptor
+                }
+            }
+        }
+    }
+
+    private static void reLinkRejas(ServerLevel level, BlockPos centerPos) {
+        List<RejaDuctoEntity> rejas = level.getEntitiesOfClass(
+                RejaDuctoEntity.class, new AABB(centerPos).inflate(150), r -> true);
+
+        List<PanelEnergiaEntity> allPanels = level.getEntitiesOfClass(
+                PanelEnergiaEntity.class, new AABB(centerPos).inflate(150), p -> true);
+
+        for (RejaDuctoEntity reja : rejas) {
+            List<Vec3> saved = new ArrayList<>(reja.getLinkedPowerPanels());
+            reja.unlinkAllPowerPanels();
+
+            for (Vec3 relPos : saved) {
+                Vec3 expected = reja.position().add(relPos);
+                PanelEnergiaEntity closest = null;
+                double minDist = 5.0;
+
+                for (PanelEnergiaEntity panel : allPanels) {
+                    double dist = panel.position().distanceToSqr(expected);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closest = panel;
+                    }
+                }
+                if (closest != null) {
+                    reja.linkPowerPanel(closest, reja.position());
+                }
+            }
+
+            // Comprobar si ya debería estar abierta
+            if (reja.isPowerPanelActive()) {
+                reja.tryOpenAutomatically();
+            }
+        }
     }
 
     /**
@@ -359,6 +443,7 @@ public class EscapeRoomManager {
 
         return allFilled ? 1 : 0;
     }
+
     /**
      * Resetea el escape room (elimina y restaura en la misma posición)
      */

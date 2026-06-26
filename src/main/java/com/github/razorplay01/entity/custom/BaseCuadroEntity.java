@@ -7,12 +7,12 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
@@ -192,7 +192,7 @@ public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
         if (!this.level().isClientSide) {
             ItemStack reward = new ItemStack(ModItems.COLGANTE_CUADROS, 1);
             if (reward != null && !reward.isEmpty()) {
-                Vec3 spawnPos = this.position().add(0, 1, 0);
+                Vec3 spawnPos = this.position().add(0, 3, 0);
                 ItemEntity itemEntity = new ItemEntity(
                         this.level(),
                         spawnPos.x,
@@ -272,5 +272,20 @@ public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
                 player.sendSystemMessage(Component.literal("§7Mueve el cuadro para activar el puzzle"));
             }
         }
+    }
+
+    @Override
+    public boolean isPushable() {
+        return false;
+    }
+
+    @Override
+    public boolean canBeCollidedWith() {
+        return false;
+    }
+
+    @Override
+    public boolean canCollideWith(Entity entity) {
+        return false;
     }
 }
