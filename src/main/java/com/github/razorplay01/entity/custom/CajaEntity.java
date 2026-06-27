@@ -1,12 +1,16 @@
 package com.github.razorplay01.entity.custom;
 
+import com.github.razorplay01.api.noise.NoiseAPI;
+import com.github.razorplay01.api.noise.NoiseEvent;
 import com.github.razorplay01.entity.ModEntities;
 import com.github.razorplay01.item.ModItems;
+import com.github.razorplay01.system.NoiseDetectionSystem;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
@@ -93,6 +97,8 @@ public class CajaEntity extends BaseEntity {
         if (open && !this.level().isClientSide) {
             openAnimationTicks = 0;
             this.level().playSound(null, this.blockPosition(), SoundEvents.CHEST_OPEN, SoundSource.BLOCKS, 1.0F, 1.0F);
+            Player nearestPlayer = this.level().getNearestPlayer(this, 20.0D);
+            NoiseDetectionSystem.addNoise((ServerPlayer) nearestPlayer, 1.0f);
         }
     }
 
@@ -125,15 +131,6 @@ public class CajaEntity extends BaseEntity {
     }
 
     private void checkForInteractiveEntityCollision() {
-        /*AABB boundingBox = this.getBoundingBox();
-        List<Entity> nearby = this.level().getEntities(this, boundingBox,
-                PalancaEntity.class::isInstance);
-
-        if (!nearby.isEmpty()) {
-            setOpen(true);
-            onOpenedByCollision((PalancaEntity) nearby.getFirst());
-        }*/
-
         this.level().getEntitiesOfClass(PalancaEntity.class, this.getBoundingBox().inflate(0.5D))
                 .forEach(palancaEntity -> {
                     setOpen(true);

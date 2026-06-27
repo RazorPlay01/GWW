@@ -28,9 +28,9 @@ public class NoiseDetectionSystem {
     // Configuración de ruidos mejorada
     public static class NoiseConfig {
         // Movimiento base
-        public static final float WALKING_BASE = 0.15f;
+        public static final float WALKING_BASE = 0.1f;
         public static final float SNEAKING_BASE = 0.05f; // Muy silencioso
-        public static final float SPRINTING_BASE = 0.35f; // Más ruidoso
+        public static final float SPRINTING_BASE = 0.2f; // Más ruidoso
 
         // Multiplicadores por superficie
         public static final float SURFACE_MULTIPLIER_SOFT = 0.7f; // Lana, alfombra, etc.
@@ -48,8 +48,6 @@ public class NoiseDetectionSystem {
         public static final float DAMAGE_TAKEN = 0.6f;
         public static final float ATTACK = 0.35f;
         public static final float ITEM_USE = 0.25f;
-        public static final float DOOR_OPEN = 0.3f;
-        public static final float CHEST_OPEN = 0.25f;
 
         // Umbrales de velocidad
         public static final double MIN_MOVEMENT_SPEED = 0.001; // Movimiento mínimo detectable

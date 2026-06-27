@@ -36,8 +36,6 @@ import java.util.List;
 import static com.github.razorplay01.entity.custom.util.Util.loadLinkedList;
 import static com.github.razorplay01.entity.custom.util.Util.saveLinkedList;
 
-// todo: vincular con puerta metalica
-
 @Getter
 public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPartEntity<PanelFusiblesEntity> {
     private EntityHitboxData<PanelFusiblesEntity> hitboxData;
