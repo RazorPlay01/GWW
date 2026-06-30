@@ -1,6 +1,7 @@
 package com.github.razorplay01.network;
 
 import com.github.razorplay.packet_handler.network.IPacket;
+import com.github.razorplay01.SingleSlotState;
 import com.github.razorplay01.client.ClientNoiseState;
 import com.github.razorplay01.extra.ClientMinigameState;
 import com.github.razorplay01.network.packet.MinigameStatePacket;

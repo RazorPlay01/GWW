@@ -2,7 +2,6 @@
 	"format_version": "1.8.0",
 	"animations": {
 		"animation.open": {
-			"loop": "hold_on_last_frame",
 			"animation_length": 1,
 			"bones": {
 				"bone": {
@@ -27,7 +26,6 @@
 			}
 		},
 		"animation.close": {
-			"loop": "hold_on_last_frame",
 			"animation_length": 1,
 			"bones": {
 				"bone": {

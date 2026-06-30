@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.UUID;
+
 @Getter
 @Setter
 public class PlayerNoiseData {
@@ -21,10 +23,12 @@ public class PlayerNoiseData {
     private int ticksSinceLastStep = 0;
     private float accumulatedDistance = 0.0f;
 
+    private UUID groupLeader = null; // Nuevo: líder del grupo para ruido compartido
+
     // Configuración de pasos
-    private static final float STEP_DISTANCE_NORMAL = 0.6f; // Distancia para generar ruido caminando
-    private static final float STEP_DISTANCE_SNEAKING = 1.2f; // Distancia agachado (más silencioso)
-    private static final float STEP_DISTANCE_SPRINTING = 0.4f; // Distancia corriendo (más ruidoso)
+    private static final float STEP_DISTANCE_NORMAL = 0.6f;
+    private static final float STEP_DISTANCE_SNEAKING = 1.2f;
+    private static final float STEP_DISTANCE_SPRINTING = 0.4f;
 
     public void reset() {
         this.currentNoise = 0.0f;

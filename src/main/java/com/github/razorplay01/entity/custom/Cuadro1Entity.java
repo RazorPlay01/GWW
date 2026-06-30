@@ -13,6 +13,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import software.bernie.geckolib.animation.AnimatableManager;
 
+//todo: codigo viejo
 public class Cuadro1Entity extends BaseCuadroEntity {
 
     public Cuadro1Entity(EntityType<? extends PathfinderMob> entityType, Level level) {

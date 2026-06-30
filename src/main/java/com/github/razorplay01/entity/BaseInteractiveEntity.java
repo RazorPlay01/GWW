@@ -1,12 +1,14 @@
 package com.github.razorplay01.entity;
 
 import com.github.razorplay01.entity.custom.BaseEntity;
+import com.github.razorplay01.system.NoiseDetectionSystem;
 import lombok.Getter;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntityType;
@@ -164,12 +166,16 @@ public class BaseInteractiveEntity extends BaseEntity {
             if (isPlayerBound(player)) {
                 unbind();
                 onUnbound(player);
+                Player nearestPlayer = this.level().getNearestPlayer(this, 20.0D);
+                NoiseDetectionSystem.addNoise((ServerPlayer) nearestPlayer, 0.3f);
             } else {
                 player.sendSystemMessage(Component.literal("§c¡Esta entidad está vinculada a otro jugador!"));
             }
         } else {
             bind(player);
             onBound(player);
+            Player nearestPlayer = this.level().getNearestPlayer(this, 20.0D);
+            NoiseDetectionSystem.addNoise((ServerPlayer) nearestPlayer, 0.3f);
         }
     }
 

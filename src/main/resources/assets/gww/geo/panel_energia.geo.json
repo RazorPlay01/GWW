@@ -41,9 +41,9 @@
 						},
 						{
 							"origin": [-1, 16, -0.5],
-							"size": [2, 2, 0],
+							"size": [2, 1, 0],
 							"uv": {
-								"north": {"uv": [8, 49], "uv_size": [2, 2]},
+								"north": {"uv": [8, 50], "uv_size": [2, 1]},
 								"east": {"uv": [0, 0], "uv_size": [0, 2]},
 								"south": {"uv": [10, 49], "uv_size": [2, 2]},
 								"west": {"uv": [0, 0], "uv_size": [0, 2]},
@@ -169,6 +169,52 @@
 								"west": {"uv": [50, 1], "uv_size": [3, 1]},
 								"up": {"uv": [42, 26], "uv_size": [14, 3]},
 								"down": {"uv": [42, 32], "uv_size": [14, -3]}
+							}
+						}
+					]
+				},
+				{
+					"name": "cable_completo",
+					"parent": "group",
+					"pivot": [8, 0, 0.5],
+					"cubes": [
+						{
+							"origin": [-1, 17, -0.5],
+							"size": [2, 4, 0],
+							"uv": {
+								"north": {"uv": [50, 10], "uv_size": [2, 4]},
+								"east": {"uv": [0, 0], "uv_size": [0, 2]},
+								"south": {"uv": [10, 49], "uv_size": [2, 2]},
+								"west": {"uv": [0, 0], "uv_size": [0, 2]},
+								"up": {"uv": [0, 0], "uv_size": [2, 0]},
+								"down": {"uv": [0, 0], "uv_size": [2, 0]}
+							}
+						}
+					]
+				},
+				{
+					"name": "cable_cortado",
+					"parent": "group",
+					"pivot": [8, 0, 0.5],
+					"cubes": [
+						{
+							"origin": [-0.8, 16.4, -0.5],
+							"size": [2, 2, 0],
+							"inflate": -0.1,
+							"pivot": [0.2, 17.4, -0.5],
+							"rotation": [0, 0, 22.5],
+							"uv": {
+								"north": {"uv": [50, 12], "uv_size": [2, 2]}
+							}
+						},
+						{
+							"origin": [-1, 19.7, -0.5],
+							"size": [2, 2, 0],
+							"inflate": -0.1,
+							"pivot": [0, 20.7, -0.5],
+							"rotation": [0, 0, -22.5],
+							"uv": {
+								"north": {"uv": [50, 14], "uv_size": [2, -2]}
 							}
 						}
 					]

@@ -94,7 +94,7 @@ public class ModEntities {
     public static final EntityType<EscaleraEntity> ESCALERA = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "escalera"),
             EntityType.Builder.of(EscaleraEntity::new, MobCategory.MISC)
-                    .sized(1f, 2.2f).build());
+                    .sized(1f, 1.5f).build());
     public static final EntityType<CableEntity> CABLE = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "cable"),
             EntityType.Builder.of(CableEntity::new, MobCategory.MISC)

@@ -35,7 +35,7 @@ dependencies {
     testAnnotationProcessor("org.projectlombok:lombok:1.18.44")
     modImplementation "software.bernie.geckolib:geckolib-fabric-${minecraft_version}:${geckolib_version}"
     modImplementation files('libs/morehitboxes-fabric-1.21.1-1.9.4-alpha.jar')
-    modImplementation files('libs/big-items-a1.1.jar')
+    //modImplementation files('libs/big-items-a1.1.jar')
 }
 
 processResources {

@@ -1,3 +1,4 @@
+/*
 package com.github.razorplay01.item;
 
 import net.minecraft.world.item.Item;
@@ -16,3 +17,4 @@ public class BigItem extends Item implements IBigItem {
         return scale;
     }
 }
+*/

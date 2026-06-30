@@ -1,6 +1,7 @@
 package com.github.razorplay01.entity.custom;
 
 import com.github.razorplay01.entity.custom.util.ValvulaType;
+import com.github.razorplay01.system.NoiseDetectionSystem;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -9,6 +10,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
@@ -24,7 +26,6 @@ import software.bernie.geckolib.animation.RawAnimation;
 
 import java.util.*;
 
-//todo: bug en la animacion
 public class ValvulaEntity extends BaseEntity {
 
     private static final EntityDataAccessor<Integer> DATA_TYPE =
@@ -397,6 +398,10 @@ public class ValvulaEntity extends BaseEntity {
     public void handleNormalInteract(Player player) {
         if (!hasManivela()) return;
         increaseState();
+        Player nearestPlayer = this.level().getNearestPlayer(this, 20.0D);
+        if (nearestPlayer instanceof ServerPlayer serverPlayer) {
+            NoiseDetectionSystem.addNoise(serverPlayer, 0.5f);
+        }
     }
 
     @Override
@@ -408,6 +413,10 @@ public class ValvulaEntity extends BaseEntity {
     public boolean hurt(DamageSource damageSource, float amount) {
         if (damageSource.getEntity() instanceof Player && hasManivela()) {
             if (!this.level().isClientSide) decreaseState();
+            Player nearestPlayer = this.level().getNearestPlayer(this, 20.0D);
+            if (nearestPlayer instanceof ServerPlayer serverPlayer) {
+                NoiseDetectionSystem.addNoise(serverPlayer, 0.5f);
+            }
             return false;
         }
         return super.hurt(damageSource, amount);

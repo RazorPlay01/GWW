@@ -9,6 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Util {
+    private Util() {
+        /* This utility class should not be instantiated */
+    }
+
     public static void saveLinkedList(CompoundTag tag, String key, List<Vec3> list) {
         ListTag listTag = new ListTag();
         for (Vec3 vec : list) {

@@ -1,46 +1,46 @@
 package com.github.razorplay01;
 
-import com.github.razorplay01.api.noise.NoiseAPI;
-import com.github.razorplay01.api.noise.NoiseEvent;
 import com.github.razorplay01.cam.starup.AnnotationFinder;
 import com.github.razorplay01.client.ClientNoiseState;
 import com.github.razorplay01.client.render.NoiseHudRenderer;
 import com.github.razorplay01.command.CuadroCommand;
 import com.github.razorplay01.command.EscapeRoomConfigCommand;
 import com.github.razorplay01.command.NoiseCommand;
-import com.github.razorplay01.entity.BaseInteractiveEntity;
-import com.github.razorplay01.entity.BaseInteractiveRenderer;
 import com.github.razorplay01.entity.ModEntities;
-import com.github.razorplay01.entity.MysticOrbEntity;
 import com.github.razorplay01.entity.attribute.ModAttributes;
 import com.github.razorplay01.entity.client.*;
 import com.github.razorplay01.entity.custom.*;
+import com.github.razorplay01.entity.custom.util.PuzzleEntityChecker;
 import com.github.razorplay01.event.NoiseEventHandler;
 import com.github.razorplay01.extra.MinigameCommand;
 import com.github.razorplay01.extra.MinigameState;
+import com.github.razorplay01.item.ModComponents;
 import com.github.razorplay01.item.ModItems;
 import com.github.razorplay01.network.ClientNetworkManager;
 import com.github.razorplay01.network.FabricCustomPayload;
 import com.github.razorplay01.network.ServerNetworkManager;
-import com.github.razorplay01.system.NoiseDetectionSystem;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.ModInitializer;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class GWW implements ModInitializer, ClientModInitializer {
     public static final String MOD_ID = "gww";
     public static final String PACKET_BASE_CHANNEL = MOD_ID + ":packets_channel";
-
+    public static final int ALLOWED_SLOT = 4;
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static MinigameState currentGame = null;
+    public static MinecraftServer server;
 
     @Override
     public void onInitialize() {
@@ -62,8 +62,10 @@ public class GWW implements ModInitializer, ClientModInitializer {
             CuadroCommand.register(dispatcher);
             EscapeRoomConfigCommand.register(dispatcher);
         });
+        ModComponents.register();
         ModItems.registerModItems();
         ModAttributes.register();
+        PuzzleEntityChecker.registerDefaultCheckers();
         ModEntities.registerModEntities();
         FabricDefaultAttributeRegistry.register(ModEntities.CANNON, CannonEntity.setAttributes());
         FabricDefaultAttributeRegistry.register(ModEntities.CANNON_BULLET, CannonBulletEntity.setAttributes());
@@ -88,6 +90,22 @@ public class GWW implements ModInitializer, ClientModInitializer {
         FabricDefaultAttributeRegistry.register(ModEntities.PUERTA_JAULA, PuertaJaulaEntity.setAttributes());
         FabricDefaultAttributeRegistry.register(ModEntities.PANEL_ENERGIA, PanelEnergiaEntity.setAttributes());
         FabricDefaultAttributeRegistry.register(ModEntities.PANEL_CODIGO, PanelCodigoEntity.setAttributes());
+        /*ServerTickEvents.END_SERVER_TICK.register(server -> {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                if (SingleSlotState.isEnabled(player.getUUID())) {
+                    cleanLockedSlots(player);
+                }
+            }
+        });
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            ServerPlayer player = handler.getPlayer();
+            if (SingleSlotState.isEnabled(player.getUUID())) {
+                player.getInventory().selected = ALLOWED_SLOT;
+                cleanLockedSlots(player);
+            }
+        });*/
+        ServerLifecycleEvents.SERVER_STARTING.register(minecraftServer -> server = minecraftServer);
+        ServerLifecycleEvents.SERVER_STOPPED.register(minecraftServer -> server = null);
         LOGGER.info("Hello Fabric world!");
     }
 
@@ -124,5 +142,41 @@ public class GWW implements ModInitializer, ClientModInitializer {
                 ClientNoiseState.get().tick();
             }
         });
+        /*ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (client.player != null) {
+                if (SingleSlotState.isClientEnabled()) {
+                    if (client.player.getInventory().selected != ALLOWED_SLOT) {
+                        client.player.getInventory().selected = ALLOWED_SLOT;
+                    }
+                }
+            }
+        });*/
+    }
+
+    public static void cleanLockedSlots(ServerPlayer player) {
+        for (int i = 0; i < 9; i++) {
+            if (i == ALLOWED_SLOT) continue;
+
+            ItemStack stack = player.getInventory().getItem(i);
+            if (!stack.isEmpty()) {
+                boolean moved = false;
+                for (int j = 9; j < 36; j++) {
+                    if (player.getInventory().getItem(j).isEmpty()) {
+                        player.getInventory().setItem(j, stack.copy());
+                        player.getInventory().setItem(i, ItemStack.EMPTY);
+                        moved = true;
+                        break;
+                    }
+                }
+                if (!moved) {
+                    player.drop(stack, false);
+                    player.getInventory().setItem(i, ItemStack.EMPTY);
+                }
+            }
+        }
+    }
+
+    public static boolean isSlotLocked(int hotbarSlot) {
+        return hotbarSlot >= 0 && hotbarSlot < 9 && hotbarSlot != ALLOWED_SLOT;
     }
 }

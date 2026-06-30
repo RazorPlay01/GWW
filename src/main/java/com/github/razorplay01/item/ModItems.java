@@ -17,12 +17,12 @@ public class ModItems {
     public static final Item COLGANTE_CUADROS = register("colgante_cuadros", new Item(new Item.Properties()));
     public static final Item CUADRO_DE_LILITH_2 = register("cuadro_de_lilith2", new Item(new Item.Properties()));
     public static final Item CUADRO_LILITH = register("cuadro_lilith", new Item(new Item.Properties()));
-    public static final Item FUSIBLE_AZUL = register("fusible_azul", new BigItem(new Item.Properties(), new int[]{1, 2}));
-    public static final Item FUSIBLE_ROJO = register("fusible_rojo", new BigItem(new Item.Properties(), new int[]{1, 2}));
-    public static final Item FUSIBLE_VERDE = register("fusible_verde", new BigItem(new Item.Properties(), new int[]{1, 2}));
+    public static final Item FUSIBLE_AZUL = register("fusible_azul", new Item(new Item.Properties()));
+    public static final Item FUSIBLE_ROJO = register("fusible_rojo", new Item(new Item.Properties()));
+    public static final Item FUSIBLE_VERDE = register("fusible_verde", new Item(new Item.Properties()));
     public static final Item GANZUA = register("ganzua", new Item(new Item.Properties()));
-    public static final Item HOJA_PISTA = register("hoja_pista", new Item(new Item.Properties()));
-    public static final Item LLAVE_ATICO = register("llave_atico", new BigItem(new Item.Properties(), new int[]{2, 2}));
+    public static final Item HOJA_PISTA = register("hoja_pista", new PistaItem(new Item.Properties()));
+    public static final Item LLAVE_ATICO = register("llave_atico", new Item(new Item.Properties()));
 
     public static final ResourceKey<CreativeModeTab> CUSTOM_ITEM_GROUP_KEY = ResourceKey.create(BuiltInRegistries.CREATIVE_MODE_TAB.key(), ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "item_group"));
     public static final CreativeModeTab CUSTOM_ITEM_GROUP = FabricItemGroup.builder()

@@ -23,8 +23,6 @@ import software.bernie.geckolib.animation.RawAnimation;
 import java.util.ArrayList;
 import java.util.List;
 
-// todo: esta roto el vinculo
-// me funciona bien a mi en ide
 public class RejaDuctoEntity extends BaseEntity {
 
     private static final EntityDataAccessor<Boolean> IS_OPEN = SynchedEntityData.defineId(

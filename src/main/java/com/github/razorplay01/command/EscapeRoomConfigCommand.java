@@ -133,7 +133,7 @@ public class EscapeRoomConfigCommand {
                                                                                                 .then(Commands.argument("speed", DoubleArgumentType.doubleArg(0))
                                                                                                         .then(Commands.argument("radius", DoubleArgumentType.doubleArg(0.1))
                                                                                                                 .then(Commands.argument("pushForce", DoubleArgumentType.doubleArg(0))
-                                                                                                                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 100))
+                                                                                                                        .then(Commands.argument("count", IntegerArgumentType.integer(0, 100))
                                                                                                                                 .executes(EscapeRoomConfigCommand::addParticleEmitter)
                                                                                                                         )
                                                                                                                         .executes(ctx -> addParticleEmitterWithDefaults(ctx, 5))

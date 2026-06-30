@@ -17,20 +17,27 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.NotNull;
-import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
-import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.animation.*;
 
 public class PuertaJaulaEntity extends BaseEntity {
 
     private static final EntityDataAccessor<Boolean> IS_OPEN = SynchedEntityData.defineId(
             PuertaJaulaEntity.class, EntityDataSerializers.BOOLEAN);
 
+    private static final EntityDataAccessor<Boolean> IS_UNLOCKED = SynchedEntityData.defineId(
+            PuertaJaulaEntity.class, EntityDataSerializers.BOOLEAN);
+
     private static final EntityDataAccessor<Direction> DATA_FACING =
             SynchedEntityData.defineId(PuertaJaulaEntity.class, EntityDataSerializers.DIRECTION);
 
+    // Animaciones
+    //todo: falta cambiar la animacion de opne por la otra hay una con condado y otra sin candado
     private static final RawAnimation ANIMATION_IDLE = RawAnimation.begin().thenLoop("animation.idle");
     private static final RawAnimation ANIMATION_OPEN = RawAnimation.begin().thenPlayAndHold("animation.open");
+    private static final RawAnimation ANIMATION_CLOSE = RawAnimation.begin().thenPlayAndHold("animation.close");
+
+    // Variable para controlar la animación de cierre
+    private boolean wasOpen = false;
 
     public PuertaJaulaEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
         super(entityType, level);
@@ -40,6 +47,7 @@ public class PuertaJaulaEntity extends BaseEntity {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(IS_OPEN, false);
+        builder.define(IS_UNLOCKED, false);
         builder.define(DATA_FACING, Direction.NORTH);
     }
 
@@ -65,13 +73,28 @@ public class PuertaJaulaEntity extends BaseEntity {
     }
 
     public void setOpen(boolean open) {
+        boolean oldState = isOpen();
         this.entityData.set(IS_OPEN, open);
+
+        // Detectar cambio de estado para animación
+        if (oldState != open) {
+            wasOpen = oldState;
+        }
+    }
+
+    public boolean isUnlocked() {
+        return this.entityData.get(IS_UNLOCKED);
+    }
+
+    public void setUnlocked(boolean unlocked) {
+        this.entityData.set(IS_UNLOCKED, unlocked);
     }
 
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putBoolean("IsOpen", isOpen());
+        tag.putBoolean("IsUnlocked", isUnlocked());
         tag.putString("Facing", getFacing().getSerializedName());
     }
 
@@ -79,6 +102,7 @@ public class PuertaJaulaEntity extends BaseEntity {
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         setOpen(tag.getBoolean("IsOpen"));
+        setUnlocked(tag.getBoolean("IsUnlocked"));
         if (tag.contains("Facing")) {
             Direction dir = Direction.byName(tag.getString("Facing"));
             if (dir != null) {
@@ -98,23 +122,49 @@ public class PuertaJaulaEntity extends BaseEntity {
                 this,
                 "puerta_controller",
                 0,
-                state -> isOpen()
-                        ? state.setAndContinue(ANIMATION_OPEN)
-                        : state.setAndContinue(ANIMATION_IDLE)
+                this::animationPredicate
         ));
+    }
+
+    protected <E extends PuertaJaulaEntity> PlayState animationPredicate(final AnimationState<E> state) {
+        if (isOpen()) {
+            state.setAnimation(ANIMATION_OPEN);
+            wasOpen = false;
+            return PlayState.CONTINUE;
+        }
+        else if (wasOpen) {
+            state.setAnimation(ANIMATION_CLOSE);
+            return PlayState.CONTINUE;
+        }
+        else {
+            state.setAnimation(ANIMATION_IDLE);
+            return PlayState.CONTINUE;
+        }
     }
 
     @Override
     public void handleNormalInteract(Player player) {
-        if (!player.level().isClientSide) {
-            if (!isOpen()) {
-                if (hasRequiredItem(player)) {
-                    consumeRequiredItem(player);
-                    setOpen(true);
-                    player.sendSystemMessage(Component.literal("§a¡Has abierto la puerta!"));
-                } else {
-                    player.sendSystemMessage(Component.literal("§cNecesitas un §bobjeto §cpara abrir esta puerta"));
-                }
+        if (player.level().isClientSide) return;
+
+        if (!isUnlocked()) {
+            // Primera vez: necesita ganzúa
+            if (hasRequiredItem(player)) {
+                consumeRequiredItem(player);
+                setUnlocked(true);
+                setOpen(true);
+                player.sendSystemMessage(Component.literal("§a¡Has desbloqueado la puerta! Ahora puedes abrirla y cerrarla libremente."));
+            } else {
+                player.sendSystemMessage(Component.literal("§cNecesitas un §bGanzúa §cpara desbloquear esta puerta"));
+            }
+        } else {
+            // Ya está desbloqueada → toggle
+            boolean newState = !isOpen();
+            setOpen(newState);
+
+            if (newState) {
+                player.sendSystemMessage(Component.literal("§aPuerta abierta"));
+            } else {
+                player.sendSystemMessage(Component.literal("§ePuerta cerrada"));
             }
         }
     }
@@ -136,7 +186,7 @@ public class PuertaJaulaEntity extends BaseEntity {
     // ==================== COLISIÓN SELECTIVA ====================
     @Override
     public boolean canBeCollidedWith() {
-        return !isOpen();           // Permite pasar cuando está abierta
+        return !isOpen();
     }
 
     @Override
@@ -146,7 +196,6 @@ public class PuertaJaulaEntity extends BaseEntity {
 
     @Override
     public void push(Entity entity) {
-        // No empuja al jugador cuando está abierta
         if (!isOpen()) {
             super.push(entity);
         }

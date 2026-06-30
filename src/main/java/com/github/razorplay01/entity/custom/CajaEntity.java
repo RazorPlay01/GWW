@@ -1,7 +1,5 @@
 package com.github.razorplay01.entity.custom;
 
-import com.github.razorplay01.api.noise.NoiseAPI;
-import com.github.razorplay01.api.noise.NoiseEvent;
 import com.github.razorplay01.entity.ModEntities;
 import com.github.razorplay01.item.ModItems;
 import com.github.razorplay01.system.NoiseDetectionSystem;
@@ -22,7 +20,6 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.animation.AnimatableManager;
 import software.bernie.geckolib.animation.AnimationController;
@@ -31,7 +28,6 @@ import software.bernie.geckolib.animation.RawAnimation;
 import java.util.ArrayList;
 import java.util.List;
 
-//todo: cambair zombie por manivela
 public class CajaEntity extends BaseEntity {
 
     private static final EntityDataAccessor<Boolean> IS_OPEN = SynchedEntityData.defineId(CajaEntity.class, EntityDataSerializers.BOOLEAN);

@@ -1,12 +1,14 @@
 package com.github.razorplay01.entity.custom;
 
 import com.github.razorplay01.item.ModItems;
+import com.github.razorplay01.system.NoiseDetectionSystem;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
@@ -153,6 +155,8 @@ public class PanelEnergiaEntity extends BaseEntity {
                     if (hasRequiredItem(player, new ItemStack(ModItems.ALICATE_CORTACABLES))) {
                         consumeRequiredItem(player, new ItemStack(ModItems.ALICATE_CORTACABLES));
                         setActive(true);
+                        Player nearestPlayer = this.level().getNearestPlayer(this, 20.0D);
+                        NoiseDetectionSystem.addNoise((ServerPlayer) nearestPlayer, 0.5f);
                         player.sendSystemMessage(Component.literal("§a¡Has cortado los cables!"));
                     } else {
                         player.sendSystemMessage(Component.literal("§cNecesitas un §bobjeto §cpara interactuar con el panel eléctrico"));
