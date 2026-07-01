@@ -17,7 +17,7 @@ public class UblablaEntityRenderer extends GeoEntityRenderer<UblablaEntity> {
         super(context, new UblablaEntityModel());
     }
 
-    @Override
+   /* @Override
     public void render(UblablaEntity entity, float entityYaw, float partialTick, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
         Component debug =
                 switch (entity.getState()) {
@@ -40,6 +40,5 @@ public class UblablaEntityRenderer extends GeoEntityRenderer<UblablaEntity> {
         poseStack.popPose();
         super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
     }
-
-
+*/
 }

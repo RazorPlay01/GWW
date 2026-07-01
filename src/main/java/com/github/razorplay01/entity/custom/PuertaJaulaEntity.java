@@ -21,36 +21,86 @@ import software.bernie.geckolib.animation.*;
 
 public class PuertaJaulaEntity extends BaseEntity {
 
-    private static final EntityDataAccessor<Boolean> IS_OPEN = SynchedEntityData.defineId(
-            PuertaJaulaEntity.class, EntityDataSerializers.BOOLEAN);
+    // ==================== ENTITY DATA ====================
+    private static final EntityDataAccessor<Boolean> IS_OPEN =
+            SynchedEntityData.defineId(PuertaJaulaEntity.class, EntityDataSerializers.BOOLEAN);
 
-    private static final EntityDataAccessor<Boolean> IS_UNLOCKED = SynchedEntityData.defineId(
-            PuertaJaulaEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> IS_UNLOCKED =
+            SynchedEntityData.defineId(PuertaJaulaEntity.class, EntityDataSerializers.BOOLEAN);
+
+    private static final EntityDataAccessor<Integer> ANIMATION_STATE =
+            SynchedEntityData.defineId(PuertaJaulaEntity.class, EntityDataSerializers.INT);
 
     private static final EntityDataAccessor<Direction> DATA_FACING =
             SynchedEntityData.defineId(PuertaJaulaEntity.class, EntityDataSerializers.DIRECTION);
 
-    // Animaciones
-    //todo: falta cambiar la animacion de opne por la otra hay una con condado y otra sin candado
-    private static final RawAnimation ANIMATION_IDLE = RawAnimation.begin().thenLoop("animation.idle");
-    private static final RawAnimation ANIMATION_OPEN = RawAnimation.begin().thenPlayAndHold("animation.open");
-    private static final RawAnimation ANIMATION_CLOSE = RawAnimation.begin().thenPlayAndHold("animation.close");
+    // ==================== ANIMATION STATES ====================
+    private enum AnimState {
+        LOCKED(0),      // Bloqueada (lock.idle)
+        UNLOCKING(1),   // Desbloqueando (unlock)
+        OPENING(2),     // Abriéndose (open)
+        OPEN(3),        // Abierta (open.idle)
+        CLOSING(4),     // Cerrándose (close)
+        CLOSED(5);      // Cerrada desbloqueada (close.idle)
 
-    // Variable para controlar la animación de cierre
-    private boolean wasOpen = false;
+        private final int id;
+        AnimState(int id) { this.id = id; }
 
+        public int getId() { return id; }
+
+        public static AnimState fromId(int id) {
+            for (AnimState state : values()) {
+                if (state.id == id) return state;
+            }
+            return LOCKED;
+        }
+    }
+
+    // ==================== ANIMATION DEFINITIONS ====================
+    private static final RawAnimation ANIM_LOCK_IDLE =
+            RawAnimation.begin().thenLoop("animation.lock.idle");
+    private static final RawAnimation ANIM_UNLOCK =
+            RawAnimation.begin().thenPlay("animation.unlock");
+    private static final RawAnimation ANIM_OPEN =
+            RawAnimation.begin().thenPlay("animation.open");
+    private static final RawAnimation ANIM_OPEN_IDLE =
+            RawAnimation.begin().thenLoop("animation.open.idle");
+    private static final RawAnimation ANIM_CLOSE =
+            RawAnimation.begin().thenPlay("animation.close");
+    private static final RawAnimation ANIM_CLOSE_IDLE =
+            RawAnimation.begin().thenLoop("animation.close.idle");
+
+    // ==================== CONSTANTS ====================
+    // Duraciones exactas de las animaciones (en ticks: 20 ticks = 1 segundo)
+    private static final int UNLOCK_ANIM_DURATION = 15;  // 0.75s * 20 = 15 ticks
+    private static final int OPEN_ANIM_DURATION = 9;     // 0.45s * 20 = 9 ticks
+    private static final int CLOSE_ANIM_DURATION = 9;    // 0.45s * 20 = 9 ticks
+
+    private static final String NBT_OPEN = "IsOpen";
+    private static final String NBT_UNLOCKED = "IsUnlocked";
+    private static final String NBT_ANIM_STATE = "AnimState";
+    private static final String NBT_FACING = "Facing";
+    private static final String NBT_ANIM_TIMER = "AnimTimer";
+
+    // ==================== FIELDS ====================
+    private int animationTimer = 0;
+
+    // ==================== CONSTRUCTOR ====================
     public PuertaJaulaEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
         super(entityType, level);
     }
 
+    // ==================== ENTITY DATA SETUP ====================
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(IS_OPEN, false);
         builder.define(IS_UNLOCKED, false);
+        builder.define(ANIMATION_STATE, AnimState.LOCKED.getId());
         builder.define(DATA_FACING, Direction.NORTH);
     }
 
+    // ==================== GETTERS & SETTERS ====================
     public Direction getFacing() {
         return this.entityData.get(DATA_FACING);
     }
@@ -72,50 +122,100 @@ public class PuertaJaulaEntity extends BaseEntity {
         return this.entityData.get(IS_OPEN);
     }
 
-    public void setOpen(boolean open) {
-        boolean oldState = isOpen();
+    private void setOpen(boolean open) {
         this.entityData.set(IS_OPEN, open);
-
-        // Detectar cambio de estado para animación
-        if (oldState != open) {
-            wasOpen = oldState;
-        }
     }
 
     public boolean isUnlocked() {
         return this.entityData.get(IS_UNLOCKED);
     }
 
-    public void setUnlocked(boolean unlocked) {
+    private void setUnlocked(boolean unlocked) {
         this.entityData.set(IS_UNLOCKED, unlocked);
     }
 
-    @Override
-    public void addAdditionalSaveData(CompoundTag tag) {
-        super.addAdditionalSaveData(tag);
-        tag.putBoolean("IsOpen", isOpen());
-        tag.putBoolean("IsUnlocked", isUnlocked());
-        tag.putString("Facing", getFacing().getSerializedName());
+    private AnimState getAnimState() {
+        return AnimState.fromId(this.entityData.get(ANIMATION_STATE));
     }
 
+    private void setAnimState(AnimState state) {
+        this.entityData.set(ANIMATION_STATE, state.getId());
+        animationTimer = 0;
+    }
+
+    // ==================== STATE TRANSITIONS ====================
+    private void startUnlocking() {
+        setAnimState(AnimState.UNLOCKING);
+    }
+
+    private void startOpening() {
+        setAnimState(AnimState.OPENING);
+    }
+
+    private void completeOpen() {
+        setOpen(true);
+        setAnimState(AnimState.OPEN);
+    }
+
+    private void startClosing() {
+        setAnimState(AnimState.CLOSING);
+    }
+
+    private void completeClose() {
+        setOpen(false);
+        setAnimState(AnimState.CLOSED);
+    }
+
+    // ==================== TICK LOGIC ====================
     @Override
-    public void readAdditionalSaveData(CompoundTag tag) {
-        super.readAdditionalSaveData(tag);
-        setOpen(tag.getBoolean("IsOpen"));
-        setUnlocked(tag.getBoolean("IsUnlocked"));
-        if (tag.contains("Facing")) {
-            Direction dir = Direction.byName(tag.getString("Facing"));
-            if (dir != null) {
-                setFacing(dir);
-            }
+    public void tick() {
+        super.tick();
+
+        if (!level().isClientSide) {
+            updateAnimationState();
         }
     }
 
-    public static AttributeSupplier.Builder setAttributes() {
-        return PathfinderMob.createMobAttributes()
-                .add(Attributes.MAX_HEALTH, Double.POSITIVE_INFINITY);
+    /**
+     * Actualiza el estado de animación basado en timers
+     */
+    private void updateAnimationState() {
+        AnimState currentState = getAnimState();
+        animationTimer++;
+
+        switch (currentState) {
+            case UNLOCKING:
+                // Cuando termina la animación de unlock, pasa a abrir
+                if (animationTimer >= UNLOCK_ANIM_DURATION) {
+                    setUnlocked(true);
+                    startOpening();
+                }
+                break;
+
+            case OPENING:
+                // Cuando termina la animación de apertura, queda abierta
+                if (animationTimer >= OPEN_ANIM_DURATION) {
+                    completeOpen();
+                }
+                break;
+
+            case CLOSING:
+                // Cuando termina la animación de cierre, queda cerrada
+                if (animationTimer >= CLOSE_ANIM_DURATION) {
+                    completeClose();
+                }
+                break;
+
+            // Estados estables no necesitan timer
+            case LOCKED:
+            case OPEN:
+            case CLOSED:
+            default:
+                break;
+        }
     }
 
+    // ==================== ANIMATION CONTROLLER ====================
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(
@@ -126,53 +226,91 @@ public class PuertaJaulaEntity extends BaseEntity {
         ));
     }
 
+    /**
+     * Determina qué animación reproducir según el estado actual
+     */
     protected <E extends PuertaJaulaEntity> PlayState animationPredicate(final AnimationState<E> state) {
-        if (isOpen()) {
-            state.setAnimation(ANIMATION_OPEN);
-            wasOpen = false;
-            return PlayState.CONTINUE;
+        AnimState currentState = getAnimState();
+
+        switch (currentState) {
+            case LOCKED:
+                state.setAnimation(ANIM_LOCK_IDLE);
+                break;
+
+            case UNLOCKING:
+                state.setAnimation(ANIM_UNLOCK);
+                break;
+
+            case OPENING:
+                state.setAnimation(ANIM_OPEN);
+                break;
+
+            case OPEN:
+                state.setAnimation(ANIM_OPEN_IDLE);
+                break;
+
+            case CLOSING:
+                state.setAnimation(ANIM_CLOSE);
+                break;
+
+            case CLOSED:
+                state.setAnimation(ANIM_CLOSE_IDLE);
+                break;
         }
-        else if (wasOpen) {
-            state.setAnimation(ANIMATION_CLOSE);
-            return PlayState.CONTINUE;
-        }
-        else {
-            state.setAnimation(ANIMATION_IDLE);
-            return PlayState.CONTINUE;
-        }
+
+        return PlayState.CONTINUE;
     }
 
+    // ==================== PLAYER INTERACTION ====================
     @Override
     public void handleNormalInteract(Player player) {
         if (player.level().isClientSide) return;
 
-        if (!isUnlocked()) {
-            // Primera vez: necesita ganzúa
-            if (hasRequiredItem(player)) {
-                consumeRequiredItem(player);
-                setUnlocked(true);
-                setOpen(true);
-                player.sendSystemMessage(Component.literal("§a¡Has desbloqueado la puerta! Ahora puedes abrirla y cerrarla libremente."));
-            } else {
-                player.sendSystemMessage(Component.literal("§cNecesitas un §bGanzúa §cpara desbloquear esta puerta"));
-            }
-        } else {
-            // Ya está desbloqueada → toggle
-            boolean newState = !isOpen();
-            setOpen(newState);
+        AnimState currentState = getAnimState();
 
-            if (newState) {
-                player.sendSystemMessage(Component.literal("§aPuerta abierta"));
-            } else {
-                player.sendSystemMessage(Component.literal("§ePuerta cerrada"));
-            }
+        switch (currentState) {
+            case LOCKED:
+                // Intentar desbloquear con ganzúa
+                if (hasRequiredItem(player)) {
+                    consumeRequiredItem(player);
+                    startUnlocking();
+                    player.sendSystemMessage(Component.literal("§aDesbloqueando la puerta..."));
+                } else {
+                    player.sendSystemMessage(Component.literal(
+                            "§cNecesitas un §bGanzúa §cpara desbloquear esta puerta"));
+                }
+                break;
+
+            case OPEN:
+                // Cerrar puerta
+                startClosing();
+                player.sendSystemMessage(Component.literal("§eCerrando puerta..."));
+                break;
+
+            case CLOSED:
+                // Abrir puerta
+                startOpening();
+                player.sendSystemMessage(Component.literal("§aAbriendo puerta..."));
+                break;
+
+            // Durante animaciones, no hacer nada (sin spam)
+            case UNLOCKING:
+            case OPENING:
+            case CLOSING:
+                break;
         }
     }
 
+    /**
+     * Verifica si el jugador tiene una ganzúa
+     */
     private boolean hasRequiredItem(Player player) {
         return player.getInventory().contains(new ItemStack(ModItems.GANZUA));
     }
 
+    /**
+     * Consume una ganzúa del inventario del jugador
+     */
     private void consumeRequiredItem(Player player) {
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
@@ -183,7 +321,46 @@ public class PuertaJaulaEntity extends BaseEntity {
         }
     }
 
-    // ==================== COLISIÓN SELECTIVA ====================
+    // ==================== NBT SERIALIZATION ====================
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putBoolean(NBT_OPEN, isOpen());
+        tag.putBoolean(NBT_UNLOCKED, isUnlocked());
+        tag.putInt(NBT_ANIM_STATE, getAnimState().getId());
+        tag.putString(NBT_FACING, getFacing().getSerializedName());
+        tag.putInt(NBT_ANIM_TIMER, animationTimer);
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        setOpen(tag.getBoolean(NBT_OPEN));
+        setUnlocked(tag.getBoolean(NBT_UNLOCKED));
+
+        if (tag.contains(NBT_ANIM_STATE)) {
+            this.entityData.set(ANIMATION_STATE, tag.getInt(NBT_ANIM_STATE));
+        }
+
+        if (tag.contains(NBT_ANIM_TIMER)) {
+            animationTimer = tag.getInt(NBT_ANIM_TIMER);
+        }
+
+        if (tag.contains(NBT_FACING)) {
+            Direction dir = Direction.byName(tag.getString(NBT_FACING));
+            if (dir != null) {
+                setFacing(dir);
+            }
+        }
+    }
+
+    // ==================== ATTRIBUTES ====================
+    public static AttributeSupplier.Builder setAttributes() {
+        return PathfinderMob.createMobAttributes()
+                .add(Attributes.MAX_HEALTH, Double.POSITIVE_INFINITY);
+    }
+
+    // ==================== COLLISION ====================
     @Override
     public boolean canBeCollidedWith() {
         return !isOpen();
@@ -216,6 +393,7 @@ public class PuertaJaulaEntity extends BaseEntity {
         }
     }
 
+    // ==================== BOUNDING BOX ====================
     @Override
     protected @NotNull AABB makeBoundingBox() {
         double x = this.getX();
@@ -226,13 +404,15 @@ public class PuertaJaulaEntity extends BaseEntity {
         double width = 1.0;
         double depth = 0.4;
 
-        double hw = width / 2.0;
-        double hd = depth / 2.0;
+        double halfWidth = width / 2.0;
+        double halfDepth = depth / 2.0;
 
         if (getFacing().getAxis() == Direction.Axis.Z) {
-            return new AABB(x - hw, y, z - hd, x + hw, y + height, z + hd);
+            return new AABB(x - halfWidth, y, z - halfDepth,
+                    x + halfWidth, y + height, z + halfDepth);
         } else {
-            return new AABB(x - hd, y, z - hw, x + hd, y + height, z + hw);
+            return new AABB(x - halfDepth, y, z - halfWidth,
+                    x + halfDepth, y + height, z + halfWidth);
         }
     }
 }

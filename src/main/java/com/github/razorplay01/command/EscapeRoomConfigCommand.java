@@ -10,6 +10,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
@@ -172,6 +173,66 @@ public class EscapeRoomConfigCommand {
                                         )
                                         .then(Commands.literal("list")
                                                 .executes(EscapeRoomConfigCommand::listCodigoPanelDoors)
+                                        )
+                                )
+                        )
+                        .then(Commands.literal("ublabla")
+                                .then(Commands.argument("entity", EntityArgument.entity())
+                                        .then(Commands.literal("setinvestigation")
+                                                .executes(EscapeRoomConfigCommand::setInvestigationFromEntity)
+                                        )
+                                        .then(Commands.literal("setinvestigationpos")
+                                                .then(Commands.argument("x", DoubleArgumentType.doubleArg())
+                                                        .then(Commands.argument("y", DoubleArgumentType.doubleArg())
+                                                                .then(Commands.argument("z", DoubleArgumentType.doubleArg())
+                                                                        .executes(EscapeRoomConfigCommand::setInvestigationPos)
+                                                                )
+                                                        )
+                                                )
+                                        )
+                                        .then(Commands.literal("setjail")
+                                                .then(Commands.argument("minX", DoubleArgumentType.doubleArg())
+                                                        .then(Commands.argument("minY", DoubleArgumentType.doubleArg())
+                                                                .then(Commands.argument("minZ", DoubleArgumentType.doubleArg())
+                                                                        .then(Commands.argument("maxX", DoubleArgumentType.doubleArg())
+                                                                                .then(Commands.argument("maxY", DoubleArgumentType.doubleArg())
+                                                                                        .then(Commands.argument("maxZ", DoubleArgumentType.doubleArg())
+                                                                                                .executes(EscapeRoomConfigCommand::setJailArea)
+                                                                                        )
+                                                                                )
+                                                                        )
+                                                                )
+                                                        )
+                                                )
+                                        )
+                                        .then(Commands.literal("clearjail")
+                                                .executes(EscapeRoomConfigCommand::clearJailArea)
+                                        )
+                                        .then(Commands.literal("getinfo")
+                                                .executes(EscapeRoomConfigCommand::getUblablaInfo)
+                                        )
+                                        .then(Commands.literal("setpatrolcenter")
+                                                .then(Commands.argument("x", DoubleArgumentType.doubleArg())
+                                                        .then(Commands.argument("y", DoubleArgumentType.doubleArg())
+                                                                .then(Commands.argument("z", DoubleArgumentType.doubleArg())
+                                                                        .executes(EscapeRoomConfigCommand::setPatrolCenter)
+                                                                )
+                                                        )
+                                                )
+                                        )
+                                        .then(Commands.literal("setpatrolradius")
+                                                .then(Commands.argument("radius", DoubleArgumentType.doubleArg(8.0))
+                                                        .executes(EscapeRoomConfigCommand::setPatrolRadius)
+                                                )
+                                        )
+                                        .then(Commands.literal("setspawn")
+                                                .then(Commands.argument("x", DoubleArgumentType.doubleArg())
+                                                        .then(Commands.argument("y", DoubleArgumentType.doubleArg())
+                                                                .then(Commands.argument("z", DoubleArgumentType.doubleArg())
+                                                                        .executes(EscapeRoomConfigCommand::setSpawnPos)
+                                                                )
+                                                        )
+                                                )
                                         )
                                 )
                         )
@@ -827,5 +888,153 @@ public class EscapeRoomConfigCommand {
             context.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
             return 0;
         }
+    }
+
+    private static int setInvestigationFromEntity(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        Entity entity = EntityArgument.getEntity(context, "entity");
+        if (!(entity instanceof UblablaEntity ublabla)) {
+            context.getSource().sendFailure(Component.literal("§cLa entidad debe ser un Ublabla."));
+            return 0;
+        }
+        BlockPos pos = ublabla.blockPosition();
+        ublabla.setInvestigationTarget(pos);
+        context.getSource().sendSuccess(() -> Component.literal(
+                String.format("§aPunto de investigación establecido en §f(%d, %d, %d)", pos.getX(), pos.getY(), pos.getZ())
+        ), true);
+        return 1;
+    }
+
+    private static int setInvestigationPos(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        Entity entity = EntityArgument.getEntity(context, "entity");
+        if (!(entity instanceof UblablaEntity ublabla)) {
+            context.getSource().sendFailure(Component.literal("§cLa entidad debe ser un Ublabla."));
+            return 0;
+        }
+        double x = DoubleArgumentType.getDouble(context, "x");
+        double y = DoubleArgumentType.getDouble(context, "y");
+        double z = DoubleArgumentType.getDouble(context, "z");
+        BlockPos pos = new BlockPos((int)Math.floor(x), (int)Math.floor(y), (int)Math.floor(z));
+        ublabla.setInvestigationTarget(pos);
+        context.getSource().sendSuccess(() -> Component.literal(
+                String.format("§aPunto de investigación establecido en §f(%d, %d, %d)", pos.getX(), pos.getY(), pos.getZ())
+        ), true);
+        return 1;
+    }
+
+    private static int setJailArea(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        Entity entity = EntityArgument.getEntity(context, "entity");
+        if (!(entity instanceof UblablaEntity ublabla)) {
+            context.getSource().sendFailure(Component.literal("§cLa entidad debe ser un Ublabla."));
+            return 0;
+        }
+        double minX = DoubleArgumentType.getDouble(context, "minX");
+        double minY = DoubleArgumentType.getDouble(context, "minY");
+        double minZ = DoubleArgumentType.getDouble(context, "minZ");
+        double maxX = DoubleArgumentType.getDouble(context, "maxX");
+        double maxY = DoubleArgumentType.getDouble(context, "maxY");
+        double maxZ = DoubleArgumentType.getDouble(context, "maxZ");
+        BlockPos min = new BlockPos((int)Math.floor(minX), (int)Math.floor(minY), (int)Math.floor(minZ));
+        BlockPos max = new BlockPos((int)Math.floor(maxX), (int)Math.floor(maxY), (int)Math.floor(maxZ));
+        ublabla.setJailArea(min, max);
+        context.getSource().sendSuccess(() -> Component.literal(
+                String.format("§aRegión de cárcel definida: §f(%d,%d,%d) → (%d,%d,%d)",
+                        min.getX(), min.getY(), min.getZ(),
+                        max.getX(), max.getY(), max.getZ())
+        ), true);
+        return 1;
+    }
+
+    private static int clearJailArea(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        Entity entity = EntityArgument.getEntity(context, "entity");
+        if (!(entity instanceof UblablaEntity ublabla)) {
+            context.getSource().sendFailure(Component.literal("§cLa entidad debe ser un Ublabla."));
+            return 0;
+        }
+        ublabla.setJailArea(null, null);
+        context.getSource().sendSuccess(() -> Component.literal("§aRegión de cárcel eliminada."), true);
+        return 1;
+    }
+
+    private static int getUblablaInfo(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        Entity entity = EntityArgument.getEntity(context, "entity");
+        if (!(entity instanceof UblablaEntity ublabla)) {
+            context.getSource().sendFailure(Component.literal("§cLa entidad debe ser un Ublabla."));
+            return 0;
+        }
+        BlockPos spawn = ublabla.getSpawnPos();
+        BlockPos inv = ublabla.getInvestigationTarget();
+        BlockPos jailMin = ublabla.getJailMin();
+        BlockPos jailMax = ublabla.getJailMax();
+        Vec3 patrolCenter = ublabla.getPatrolCenter(); // Necesitas un getter para patrolCenter
+        double patrolRadius = ublabla.getPatrolRadius(); // Necesitas un getter para patrolRadius
+        int state = ublabla.getState();
+
+        Component msg = Component.literal(
+                String.format("§6=== Ublabla Info ===\n" +
+                                "§eSpawn: §f(%d, %d, %d)\n" +
+                                "§eCentro patrulla: §f(%.2f, %.2f, %.2f)\n" +
+                                "§eRadio patrulla: §f%.2f\n" +
+                                "§eInvestigación: §f%s\n" +
+                                "§eCárcel: §f%s\n" +
+                                "§eEstado actual: §f%d",
+                        spawn.getX(), spawn.getY(), spawn.getZ(),
+                        patrolCenter.x, patrolCenter.y, patrolCenter.z,
+                        patrolRadius,
+                        inv != null ? String.format("(%d,%d,%d)", inv.getX(), inv.getY(), inv.getZ()) : "§cNo definido",
+                        (jailMin != null && jailMax != null) ?
+                                String.format("(%d,%d,%d) → (%d,%d,%d)", jailMin.getX(), jailMin.getY(), jailMin.getZ(),
+                                        jailMax.getX(), jailMax.getY(), jailMax.getZ()) :
+                                "§cNo definida",
+                        state)
+        );
+        context.getSource().sendSuccess(() -> msg, false);
+        return 1;
+    }
+    private static int setPatrolCenter(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        Entity entity = EntityArgument.getEntity(context, "entity");
+        if (!(entity instanceof UblablaEntity ublabla)) {
+            context.getSource().sendFailure(Component.literal("§cLa entidad debe ser un Ublabla."));
+            return 0;
+        }
+        double x = DoubleArgumentType.getDouble(context, "x");
+        double y = DoubleArgumentType.getDouble(context, "y");
+        double z = DoubleArgumentType.getDouble(context, "z");
+        Vec3 center = new Vec3(x, y, z);
+        ublabla.setPatrolCenter(center);
+        context.getSource().sendSuccess(() -> Component.literal(
+                String.format("§aCentro de patrulla establecido en §f(%.2f, %.2f, %.2f)", x, y, z)
+        ), true);
+        return 1;
+    }
+
+    private static int setPatrolRadius(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        Entity entity = EntityArgument.getEntity(context, "entity");
+        if (!(entity instanceof UblablaEntity ublabla)) {
+            context.getSource().sendFailure(Component.literal("§cLa entidad debe ser un Ublabla."));
+            return 0;
+        }
+        double radius = DoubleArgumentType.getDouble(context, "radius");
+        ublabla.setPatrolRadius(radius);
+        context.getSource().sendSuccess(() -> Component.literal(
+                String.format("§aRadio de patrulla establecido en §f%.2f", radius)
+        ), true);
+        return 1;
+    }
+
+    private static int setSpawnPos(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        Entity entity = EntityArgument.getEntity(context, "entity");
+        if (!(entity instanceof UblablaEntity ublabla)) {
+            context.getSource().sendFailure(Component.literal("§cLa entidad debe ser un Ublabla."));
+            return 0;
+        }
+        double x = DoubleArgumentType.getDouble(context, "x");
+        double y = DoubleArgumentType.getDouble(context, "y");
+        double z = DoubleArgumentType.getDouble(context, "z");
+        BlockPos spawn = new BlockPos((int)Math.floor(x), (int)Math.floor(y), (int)Math.floor(z));
+        ublabla.setSpawnPos(spawn);
+        context.getSource().sendSuccess(() -> Component.literal(
+                String.format("§aPunto de spawn establecido en §f(%d, %d, %d)", spawn.getX(), spawn.getY(), spawn.getZ())
+        ), true);
+        return 1;
     }
 }

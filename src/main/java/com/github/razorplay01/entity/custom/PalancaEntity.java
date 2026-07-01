@@ -13,6 +13,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
+//todo: agregar posicion correcta y verificacion como con los cuadros pero sin la rotacion
 public class PalancaEntity extends BaseInteractiveEntity {
 
     public PalancaEntity(EntityType<? extends PathfinderMob> entityType, Level level) {

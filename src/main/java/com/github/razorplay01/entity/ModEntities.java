@@ -111,7 +111,6 @@ public class ModEntities {
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "panel_codigo"),
             EntityType.Builder.of(PanelCodigoEntity::new, MobCategory.MISC)
                     .sized(0.8f, 0.7f).build());
-//todo: panel figuras interactuable y puerta metalica
     /*public static final EntityType<MysticOrbEntity> MYSTIC_ORB = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "mystic_orb"),
             EntityType.Builder.of(MysticOrbEntity::new, MobCategory.MISC)
