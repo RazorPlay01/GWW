@@ -176,6 +176,31 @@ public class EscapeRoomConfigCommand {
                                         )
                                 )
                         )
+                        .then(Commands.literal("palanca")
+                                .then(Commands.argument("palanca", EntityArgument.entity())
+                                        .then(Commands.literal("setinitial")
+                                                .executes(EscapeRoomConfigCommand::setInitialPalancaFromCurrent)
+                                        )
+                                        .then(Commands.literal("setinitialpos")
+                                                .then(Commands.argument("x", FloatArgumentType.floatArg())
+                                                        .then(Commands.argument("y", FloatArgumentType.floatArg())
+                                                                .then(Commands.argument("z", FloatArgumentType.floatArg())
+                                                                        .executes(EscapeRoomConfigCommand::setInitialPalancaPosition)
+                                                                )
+                                                        )
+                                                )
+                                        )
+                                        .then(Commands.literal("reset")
+                                                .executes(EscapeRoomConfigCommand::resetPalancaPuzzle)
+                                        )
+                                        .then(Commands.literal("teleportinitial")
+                                                .executes(EscapeRoomConfigCommand::teleportPalancaToInitial)
+                                        )
+                                        .then(Commands.literal("check")
+                                                .executes(EscapeRoomConfigCommand::checkPalancaPlacement)
+                                        )
+                                )
+                        )
                         .then(Commands.literal("ublabla")
                                 .then(Commands.argument("entity", EntityArgument.entity())
                                         .then(Commands.literal("setinvestigation")
@@ -316,7 +341,7 @@ public class EscapeRoomConfigCommand {
         try {
             Entity entity = EntityArgument.getEntity(context, "cuadro");
 
-            if (!(entity instanceof Cuadro1Entity cuadro)) {
+            if (!(entity instanceof BaseCuadroEntity cuadro)) {
                 context.getSource().sendFailure(Component.literal("§cLa entidad no es un cuadro"));
                 return 0;
             }
@@ -344,7 +369,7 @@ public class EscapeRoomConfigCommand {
         try {
             Entity entity = EntityArgument.getEntity(context, "cuadro");
 
-            if (!(entity instanceof Cuadro1Entity cuadro)) {
+            if (!(entity instanceof BaseCuadroEntity cuadro)) {
                 context.getSource().sendFailure(Component.literal("§cLa entidad no es un cuadro"));
                 return 0;
             }
@@ -370,7 +395,7 @@ public class EscapeRoomConfigCommand {
         try {
             Entity entity = EntityArgument.getEntity(context, "cuadro");
 
-            if (!(entity instanceof Cuadro1Entity cuadro)) {
+            if (!(entity instanceof BaseCuadroEntity cuadro)) {
                 context.getSource().sendFailure(Component.literal("§cLa entidad no es un cuadro"));
                 return 0;
             }
@@ -395,7 +420,7 @@ public class EscapeRoomConfigCommand {
         try {
             Entity entity = EntityArgument.getEntity(context, "cuadro");
 
-            if (!(entity instanceof Cuadro1Entity cuadro)) {
+            if (!(entity instanceof BaseCuadroEntity cuadro)) {
                 context.getSource().sendFailure(Component.literal("§cLa entidad no es un cuadro"));
                 return 0;
             }
@@ -417,7 +442,7 @@ public class EscapeRoomConfigCommand {
         try {
             Entity entity = EntityArgument.getEntity(context, "cuadro");
 
-            if (!(entity instanceof Cuadro1Entity cuadro)) {
+            if (!(entity instanceof BaseCuadroEntity cuadro)) {
                 context.getSource().sendFailure(Component.literal("§cLa entidad no es un cuadro"));
                 return 0;
             }
@@ -441,7 +466,7 @@ public class EscapeRoomConfigCommand {
         try {
             Entity entity = EntityArgument.getEntity(context, "cuadro");
 
-            if (!(entity instanceof Cuadro1Entity cuadro)) {
+            if (!(entity instanceof BaseCuadroEntity cuadro)) {
                 context.getSource().sendFailure(Component.literal("§cLa entidad no es un cuadro"));
                 return 0;
             }
@@ -1036,5 +1061,131 @@ public class EscapeRoomConfigCommand {
                 String.format("§aPunto de spawn establecido en §f(%d, %d, %d)", spawn.getX(), spawn.getY(), spawn.getZ())
         ), true);
         return 1;
+    }
+    // ==================== COMANDOS PARA PALANCA ====================
+
+    private static int setInitialPalancaFromCurrent(CommandContext<CommandSourceStack> context) {
+        try {
+            Entity entity = EntityArgument.getEntity(context, "palanca");
+
+            if (!(entity instanceof PalancaEntity palanca)) {
+                context.getSource().sendFailure(Component.literal("§cLa entidad no es una palanca"));
+                return 0;
+            }
+
+            palanca.setInitialPosition(palanca.getX(), palanca.getY(), palanca.getZ());
+
+            context.getSource().sendSuccess(() -> Component.literal(
+                    String.format("§aPosición inicial de la palanca establecida en: §f%.2f, %.2f, %.2f",
+                            palanca.getX(), palanca.getY(), palanca.getZ())
+            ), true);
+
+            return 1;
+        } catch (Exception e) {
+            context.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int setInitialPalancaPosition(CommandContext<CommandSourceStack> context) {
+        try {
+            Entity entity = EntityArgument.getEntity(context, "palanca");
+
+            if (!(entity instanceof PalancaEntity palanca)) {
+                context.getSource().sendFailure(Component.literal("§cLa entidad no es una palanca"));
+                return 0;
+            }
+
+            float x = FloatArgumentType.getFloat(context, "x");
+            float y = FloatArgumentType.getFloat(context, "y");
+            float z = FloatArgumentType.getFloat(context, "z");
+
+            palanca.setInitialPosition(x, y, z);
+
+            context.getSource().sendSuccess(() -> Component.literal(
+                    String.format("§aPosición inicial de la palanca establecida en: §f%.2f, %.2f, %.2f", x, y, z)
+            ), true);
+
+            return 1;
+        } catch (Exception e) {
+            context.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int resetPalancaPuzzle(CommandContext<CommandSourceStack> context) {
+        try {
+            Entity entity = EntityArgument.getEntity(context, "palanca");
+
+            if (!(entity instanceof PalancaEntity palanca)) {
+                context.getSource().sendFailure(Component.literal("§cLa entidad no es una palanca"));
+                return 0;
+            }
+
+            palanca.resetPuzzleState();
+
+            context.getSource().sendSuccess(() -> Component.literal(
+                    "§aEstado del puzzle de la palanca reseteado"
+            ), true);
+
+            return 1;
+        } catch (Exception e) {
+            context.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int teleportPalancaToInitial(CommandContext<CommandSourceStack> context) {
+        try {
+            Entity entity = EntityArgument.getEntity(context, "palanca");
+
+            if (!(entity instanceof PalancaEntity palanca)) {
+                context.getSource().sendFailure(Component.literal("§cLa entidad no es una palanca"));
+                return 0;
+            }
+
+            palanca.setPos(palanca.getInitialPosition());
+
+            context.getSource().sendSuccess(() -> Component.literal(
+                    "§aPalanca teletransportada a su posición inicial"
+            ), true);
+
+            return 1;
+        } catch (Exception e) {
+            context.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int checkPalancaPlacement(CommandContext<CommandSourceStack> context) {
+        try {
+            Entity entity = EntityArgument.getEntity(context, "palanca");
+
+            if (!(entity instanceof PalancaEntity palanca)) {
+                context.getSource().sendFailure(Component.literal("§cLa entidad no es una palanca"));
+                return 0;
+            }
+
+            boolean isCorrect = palanca.checkIfCorrectlyPlaced();
+            double distance = palanca.getDistanceToInitialPosition();
+
+            if (isCorrect) {
+                context.getSource().sendSuccess(() -> Component.literal(
+                        "§a✓ La palanca está correctamente colocada"
+                ), false);
+            } else {
+                context.getSource().sendFailure(Component.literal(
+                        "§c✗ La palanca NO está correctamente colocada"
+                ));
+                context.getSource().sendFailure(Component.literal(
+                        String.format("§eDistancia: §f%.2f §ebloques (máx: %.1f)", distance, 0.5)
+                ));
+            }
+
+            return isCorrect ? 1 : 0;
+        } catch (Exception e) {
+            context.getSource().sendFailure(Component.literal("§cError: " + e.getMessage()));
+            return 0;
+        }
     }
 }

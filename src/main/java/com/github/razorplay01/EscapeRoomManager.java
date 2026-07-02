@@ -3,6 +3,7 @@ package com.github.razorplay01;
 import com.github.razorplay01.entity.custom.*;
 import lombok.Getter;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.*;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -79,20 +80,14 @@ public class EscapeRoomManager {
         private final float pitch;
         private final CompoundTag entityData;
 
-        // Datos adicionales para entidades de puzzle
         private final boolean hasPuzzleData;
         private final Vec3 relativeInitialPos;
         private final float initialYaw;
         private final float initialPitch;
 
         public EntitySnapshot(Entity entity, Vec3 centerPos) {
-            // Guardar posición relativa al centro
             Vec3 entityPos = entity.position();
-            this.relativePos = new Vec3(
-                    entityPos.x - centerPos.x,
-                    entityPos.y - centerPos.y,
-                    entityPos.z - centerPos.z
-            );
+            this.relativePos = entityPos.subtract(centerPos);
 
             this.yaw = entity.getYRot();
             this.pitch = entity.getXRot();
@@ -101,25 +96,66 @@ public class EscapeRoomManager {
             entity.save(entityData);
             this.entityType = entityData.getString("id");
 
-            // Capturar datos del puzzle si es un Cuadro1Entity
-            if (entity instanceof Cuadro1Entity cuadro) {
-                this.hasPuzzleData = true;
-                Vec3 initialPos = cuadro.getInitialPosition();
+            switch (entity) {
+                case BaseCuadroEntity cuadro -> {
+                    this.hasPuzzleData = true;
+                    Vec3 initialPos = cuadro.getInitialPosition();
+                    this.relativeInitialPos = initialPos.subtract(centerPos);
+                    this.initialYaw = cuadro.getInitialYaw();
+                    this.initialPitch = cuadro.getInitialPitch();
+                }
+                case PalancaEntity palanca -> {
+                    this.hasPuzzleData = true;
+                    Vec3 initialPos = palanca.getInitialPosition();
+                    this.relativeInitialPos = initialPos.subtract(centerPos);
+                    this.initialYaw = 0.0F;
+                    this.initialPitch = 0.0F;
+                }
+                case UblablaEntity ublabla -> {
+                    this.hasPuzzleData = true;
+                    this.relativeInitialPos = Vec3.ZERO;
+                    this.initialYaw = 0.0F;
+                    this.initialPitch = 0.0F;
 
-                // Guardar posición inicial RELATIVA al centro
-                this.relativeInitialPos = new Vec3(
-                        initialPos.x - centerPos.x,
-                        initialPos.y - centerPos.y,
-                        initialPos.z - centerPos.z
-                );
+                    if (ublabla.getPatrolCenter() != null) {
+                        BlockPos relPatrol = BlockPos.containing(ublabla.getPatrolCenter().subtract(centerPos));
+                        entityData.putInt("PatrolCenterX", relPatrol.getX());
+                        entityData.putInt("PatrolCenterY", relPatrol.getY());
+                        entityData.putInt("PatrolCenterZ", relPatrol.getZ());
+                    }
+                    entityData.putDouble("PatrolRadius", ublabla.getPatrolRadius());
 
-                this.initialYaw = cuadro.getInitialYaw();
-                this.initialPitch = cuadro.getInitialPitch();
-            } else {
-                this.hasPuzzleData = false;
-                this.relativeInitialPos = Vec3.ZERO;
-                this.initialYaw = 0.0F;
-                this.initialPitch = 0.0F;
+                    if (ublabla.getSpawnPos() != null) {
+                        BlockPos relSpawn = ublabla.getSpawnPos().subtract(BlockPos.containing(centerPos));
+                        entityData.putInt("SpawnX", relSpawn.getX());
+                        entityData.putInt("SpawnY", relSpawn.getY());
+                        entityData.putInt("SpawnZ", relSpawn.getZ());
+                    }
+
+                    if (ublabla.getJailMin() != null && ublabla.getJailMax() != null) {
+                        BlockPos relMin = ublabla.getJailMin().subtract(BlockPos.containing(centerPos));
+                        BlockPos relMax = ublabla.getJailMax().subtract(BlockPos.containing(centerPos));
+                        entityData.putInt("JailMinX", relMin.getX());
+                        entityData.putInt("JailMinY", relMin.getY());
+                        entityData.putInt("JailMinZ", relMin.getZ());
+                        entityData.putInt("JailMaxX", relMax.getX());
+                        entityData.putInt("JailMaxY", relMax.getY());
+                        entityData.putInt("JailMaxZ", relMax.getZ());
+                    }
+
+                    if (ublabla.getInvestigationTarget() != null) {
+                        BlockPos relInvest = ublabla.getInvestigationTarget().subtract(BlockPos.containing(centerPos));
+                        entityData.putInt("InvestX", relInvest.getX());
+                        entityData.putInt("InvestY", relInvest.getY());
+                        entityData.putInt("InvestZ", relInvest.getZ());
+                    }
+                }
+                default -> {
+                    this.hasPuzzleData = false;
+                    this.relativeInitialPos = Vec3.ZERO;
+                    this.initialYaw = 0.0F;
+                    this.initialPitch = 0.0F;
+                }
             }
         }
 
@@ -147,7 +183,6 @@ public class EscapeRoomManager {
             tag.putFloat("Pitch", pitch);
             tag.put("EntityData", entityData);
 
-            // Guardar datos del puzzle
             tag.putBoolean("HasPuzzleData", hasPuzzleData);
             if (hasPuzzleData) {
                 tag.putDouble("RelInitialX", relativeInitialPos.x);
@@ -202,7 +237,8 @@ public class EscapeRoomManager {
         Vec3 center = Vec3.atCenterOf(centerPos);
 
         List<Entity> entities = level.getEntities((Entity) null, area,
-                entity -> entity instanceof com.github.razorplay01.entity.custom.BaseEntity);
+                entity -> entity instanceof BaseEntity ||
+                        entity instanceof UblablaEntity);
 
         for (Entity entity : entities) {
             data.addEntity(new EntitySnapshot(entity, center));
@@ -273,27 +309,6 @@ public class EscapeRoomManager {
             rotList.add(FloatTag.valueOf(snapshot.getPitch()));
             entityTag.put("Rotation", rotList);
 
-            // Si tiene datos de puzzle, calcular posición inicial absoluta
-            if (snapshot.isHasPuzzleData()) {
-                Vec3 relInitialPos = snapshot.getRelativeInitialPos();
-                Vec3 absoluteInitialPos = new Vec3(
-                        newCenter.x + relInitialPos.x,
-                        newCenter.y + relInitialPos.y,
-                        newCenter.z + relInitialPos.z
-                );
-
-                // Actualizar datos iniciales en el NBT
-                entityTag.putFloat("InitialX", (float) absoluteInitialPos.x);
-                entityTag.putFloat("InitialY", (float) absoluteInitialPos.y);
-                entityTag.putFloat("InitialZ", (float) absoluteInitialPos.z);
-                entityTag.putFloat("InitialYaw", snapshot.getInitialYaw());
-                entityTag.putFloat("InitialPitch", snapshot.getInitialPitch());
-
-                // Actualizar rotaciones bloqueadas
-                entityTag.putFloat("LockedYaw", snapshot.getYaw());
-                entityTag.putFloat("LockedPitch", snapshot.getPitch());
-            }
-
             // Generar nuevo UUID para evitar conflictos
             entityTag.putUUID("UUID", java.util.UUID.randomUUID());
 
@@ -302,24 +317,93 @@ public class EscapeRoomManager {
                 Entity entity = EntityType.loadEntityRecursive(entityTag, level, e -> e);
                 if (entity != null) {
                     level.addFreshEntity(entity);
+
+                    // Post-procesamiento para entidades de puzzle y especiales
+                    switch (entity) {
+                        case BaseCuadroEntity cuadro when snapshot.isHasPuzzleData() -> {
+                            Vec3 relInitialPos = snapshot.getRelativeInitialPos();
+                            Vec3 absoluteInitialPos = new Vec3(
+                                    newCenter.x + relInitialPos.x,
+                                    newCenter.y + relInitialPos.y,
+                                    newCenter.z + relInitialPos.z
+                            );
+
+                            cuadro.setInitialPosition(absoluteInitialPos);
+                            if (cuadro instanceof Cuadro1Entity c1) {
+                                c1.setInitialRotation(snapshot.getInitialYaw(), snapshot.getInitialPitch());
+                            }
+                            cuadro.resetPuzzleState();
+                        }
+                        case PalancaEntity palanca when snapshot.isHasPuzzleData() -> {
+                            Vec3 relInitialPos = snapshot.getRelativeInitialPos();
+                            Vec3 absoluteInitialPos = new Vec3(
+                                    newCenter.x + relInitialPos.x,
+                                    newCenter.y + relInitialPos.y,
+                                    newCenter.z + relInitialPos.z
+                            );
+
+                            palanca.setInitialPosition(absoluteInitialPos);
+                            palanca.resetPuzzleState();
+                        }
+                        case UblablaEntity ublabla -> {
+                            CompoundTag extraData = snapshot.getEntityData();
+
+                            if (extraData.contains("PatrolCenterX")) {
+                                BlockPos relPatrol = new BlockPos(
+                                        extraData.getInt("PatrolCenterX"),
+                                        extraData.getInt("PatrolCenterY"),
+                                        extraData.getInt("PatrolCenterZ")
+                                );
+                                ublabla.setPatrolCenter(Vec3.atCenterOf(newCenterPos.offset(relPatrol)));
+                            }
+                            if (extraData.contains("PatrolRadius")) {
+                                ublabla.setPatrolRadius(extraData.getDouble("PatrolRadius"));
+                            }
+
+                            if (extraData.contains("SpawnX")) {
+                                BlockPos relSpawn = new BlockPos(
+                                        extraData.getInt("SpawnX"),
+                                        extraData.getInt("SpawnY"),
+                                        extraData.getInt("SpawnZ")
+                                );
+                                ublabla.setSpawnPos(newCenterPos.offset(relSpawn));
+                            }
+
+                            if (extraData.contains("JailMinX")) {
+                                BlockPos relMin = new BlockPos(
+                                        extraData.getInt("JailMinX"),
+                                        extraData.getInt("JailMinY"),
+                                        extraData.getInt("JailMinZ"));
+                                BlockPos relMax = new BlockPos(
+                                        extraData.getInt("JailMaxX"),
+                                        extraData.getInt("JailMaxY"),
+                                        extraData.getInt("JailMaxZ"));
+                                ublabla.setJailArea(
+                                        newCenterPos.offset(relMin),
+                                        newCenterPos.offset(relMax)
+                                );
+                            }
+
+                            if (extraData.contains("InvestX")) {
+                                BlockPos relInvest = new BlockPos(
+                                        extraData.getInt("InvestX"),
+                                        extraData.getInt("InvestY"),
+                                        extraData.getInt("InvestZ"));
+                                ublabla.setInvestigationTarget(newCenterPos.offset(relInvest));
+                            }
+
+                            ublabla.resetToPatrol();
+                        }
+                        default -> {
+                            // []
+                        }
+                    }
+
+                    // Reset de interruptores si es necesario
                     if (entity instanceof InterruptorIndustrialEntity interruptor) {
                         if (interruptor.isOn() && !interruptor.areAllCablesReady()) {
                             interruptor.setState(0);
                         }
-                    }
-
-                    // Post-procesamiento para entidades de puzzle
-                    if (entity instanceof Cuadro1Entity cuadro && snapshot.isHasPuzzleData()) {
-                        Vec3 relInitialPos = snapshot.getRelativeInitialPos();
-                        Vec3 absoluteInitialPos = new Vec3(
-                                newCenter.x + relInitialPos.x,
-                                newCenter.y + relInitialPos.y,
-                                newCenter.z + relInitialPos.z
-                        );
-
-                        // Establecer posición inicial correcta
-                        cuadro.setInitialPosition(absoluteInitialPos);
-                        cuadro.setInitialRotation(snapshot.getInitialYaw(), snapshot.getInitialPitch());
                     }
                 }
             } catch (Exception e) {
@@ -327,6 +411,7 @@ public class EscapeRoomManager {
                 e.printStackTrace();
             }
         }
+
         reLinkPanels(level, newCenterPos);
         reLinkInterruptors(level, newCenterPos);
         reLinkRejas(level, newCenterPos);
@@ -338,11 +423,9 @@ public class EscapeRoomManager {
         level.getEntitiesOfClass(PanelFusiblesEntity.class,
                         new AABB(centerPos).inflate(150), p -> true)
                 .forEach(panel -> {
-                    // Actualizar Puzzle 1 con la nueva lógica de 3 estados
                     int state1 = calculatePuzzleState(panel, 1);
                     panel.updateLinkedTurtles(1, state1);
 
-                    // Actualizar Puzzle 2
                     int state2 = calculatePuzzleState(panel, 2);
                     panel.updateLinkedTurtles(2, state2);
                 });
@@ -362,18 +445,15 @@ public class EscapeRoomManager {
         );
 
         for (InterruptorIndustrialEntity interruptor : interruptors) {
-            // Guardar las posiciones relativas originales ANTES de limpiar
             List<Vec3> savedRelPositions = new ArrayList<>(interruptor.getLinkedCables());
 
             interruptor.unlinkAllCables();
 
             for (Vec3 relPos : savedRelPositions) {
-                // relPos es relativo al interruptor, calcular posición absoluta del cable esperado
                 Vec3 expectedCablePos = interruptor.position().add(relPos);
 
-                // Buscar cable cercano a esa posición
                 CableEntity closest = null;
-                double closestDist = 4.0; // umbral máximo
+                double closestDist = 4.0;
 
                 for (CableEntity cable : allCables) {
                     double dist = cable.position().distanceToSqr(expectedCablePos);
@@ -384,7 +464,7 @@ public class EscapeRoomManager {
                 }
 
                 if (closest != null) {
-                    interruptor.linkCable(closest); // sin roomCenter, relativo al interruptor
+                    interruptor.linkCable(closest);
                 }
             }
         }
@@ -418,7 +498,6 @@ public class EscapeRoomManager {
                 }
             }
 
-            // Comprobar si ya debería estar abierta
             if (reja.isPowerPanelActive()) {
                 reja.tryOpenAutomatically();
             }
@@ -460,10 +539,9 @@ public class EscapeRoomManager {
         boolean solved = (puzzleId == 1) ? panel.isPuzzle1Solved() : panel.isPuzzle2Solved();
 
         if (solved) {
-            return 2; // Correcto
+            return 2;
         }
 
-        // Verificar si todos los slots están llenos pero no está resuelto
         boolean allFilled = (puzzleId == 1)
                 ? (panel.hasSlot(0) && panel.hasSlot(1) && panel.hasSlot(2))
                 : (panel.hasSlot(3) && panel.hasSlot(4) && panel.hasSlot(5));

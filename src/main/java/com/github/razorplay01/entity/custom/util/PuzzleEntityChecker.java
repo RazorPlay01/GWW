@@ -109,6 +109,12 @@ public class PuzzleEntityChecker {
                     : AnomalyResult.NONE;
         });
 
-        //todo: Palanca (futuro)
+        registerChecker((level, area) -> {
+            boolean found = level.getEntitiesOfClass(PalancaEntity.class, area).stream()
+                    .anyMatch(cuadro -> cuadro.hasBeenMoved() && !cuadro.isPuzzleSolved());
+            return found
+                    ? AnomalyResult.detected("§e¡La palanca ha sido movida de su lugar!")
+                    : AnomalyResult.NONE;
+        });
     }
 }

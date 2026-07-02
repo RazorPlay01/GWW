@@ -36,7 +36,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 
-// todo: hacer compatible con EscapeRoomManager
 public class UblablaEntity extends PathfinderMob implements GeoEntity {
 
     // ── Synched Data ──
@@ -421,7 +420,7 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
     /**
      * Reinicia todos los timers, limpia el objetivo y vuelve al spawn.
      */
-    private void resetToPatrol() {
+    public void resetToPatrol() {
         getNavigation().stop();
         if (spawnPos != null) {
             this.teleportTo(spawnPos.getX() + 0.5, spawnPos.getY() + 0.1, spawnPos.getZ() + 0.5);
