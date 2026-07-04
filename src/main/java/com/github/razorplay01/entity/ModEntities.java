@@ -111,13 +111,6 @@ public class ModEntities {
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "panel_codigo"),
             EntityType.Builder.of(PanelCodigoEntity::new, MobCategory.MISC)
                     .sized(0.8f, 0.7f).build());
-    /*public static final EntityType<MysticOrbEntity> MYSTIC_ORB = Registry.register(
-            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "mystic_orb"),
-            EntityType.Builder.of(MysticOrbEntity::new, MobCategory.MISC)
-                    .sized(0.6F, 0.6F)
-                    .updateInterval(1)
-                    .clientTrackingRange(10)
-                    .build());*/
 
     public static void registerModEntities() {
         GWW.LOGGER.info("Registering Mod Entities for " + GWW.MOD_ID);
