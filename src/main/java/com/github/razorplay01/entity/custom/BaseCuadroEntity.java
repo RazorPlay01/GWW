@@ -2,6 +2,7 @@ package com.github.razorplay01.entity.custom;
 
 import com.github.razorplay01.entity.BaseInteractiveEntity;
 import com.github.razorplay01.item.ModItems;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -14,7 +15,9 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.NotNull;
 
 public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
 
@@ -33,6 +36,9 @@ public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
             SynchedEntityData.defineId(BaseCuadroEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> PUZZLE_SOLVED =
             SynchedEntityData.defineId(BaseCuadroEntity.class, EntityDataSerializers.BOOLEAN);
+
+    private static final EntityDataAccessor<Direction> DATA_FACING =
+            SynchedEntityData.defineId(BaseCuadroEntity.class, EntityDataSerializers.DIRECTION);
 
     // Tolerancia para considerar que está bien colocado
     private static final double POSITION_TOLERANCE = 0.5; // bloques
@@ -58,6 +64,7 @@ public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
         builder.define(INITIAL_PITCH, 0.0F);
         builder.define(HAS_BEEN_MOVED, false);
         builder.define(PUZZLE_SOLVED, false);
+        builder.define(DATA_FACING, Direction.NORTH);
     }
 
     @Override
@@ -287,5 +294,44 @@ public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
     @Override
     public boolean canCollideWith(Entity entity) {
         return false;
+    }
+
+    public Direction getFacing() {
+        return this.entityData.get(DATA_FACING);
+    }
+
+    public void setFacing(Direction direction) {
+        if (this.entityData.get(DATA_FACING) != direction) {
+            this.entityData.set(DATA_FACING, direction);
+            this.refreshDimensions();
+        }
+    }
+
+    @Override
+    public void setYRot(float yaw) {
+        super.setYRot(yaw);
+        setFacing(Direction.fromYRot(yaw));
+    }
+
+    @Override
+    protected @NotNull AABB makeBoundingBox() {
+        double x = this.getX();
+        double y = this.getY();
+        double z = this.getZ();
+
+        double height = 2.0;
+        double width = 2.0;
+        double depth = 0.1;
+
+        double halfWidth = width / 2.0;
+        double halfDepth = depth / 2.0;
+
+        if (getFacing().getAxis() == Direction.Axis.Z) {
+            return new AABB(x - halfWidth, y, z - halfDepth,
+                    x + halfWidth, y + height, z + halfDepth);
+        } else {
+            return new AABB(x - halfDepth, y, z - halfWidth,
+                    x + halfDepth, y + height, z + halfWidth);
+        }
     }
 }

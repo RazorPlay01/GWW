@@ -3,7 +3,6 @@ package com.github.razorplay01;
 import com.github.razorplay01.entity.custom.*;
 import lombok.Getter;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.*;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -14,22 +13,29 @@ import net.minecraft.world.phys.Vec3;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class EscapeRoomManager {
     private EscapeRoomManager() {
         /* This utility class should not be instantiated */
     }
 
+    private static final Map<String, List<BlockPos>> instancePositions = new HashMap<>();
+    private static final File INSTANCES_FILE = new File("escaperooms/instances.dat");
+
     @Getter
     public static class EscapeRoomData {
         private final BlockPos centerPos;
         private final List<EntitySnapshot> entities;
         private final String name;
+        private final int radius;
 
-        public EscapeRoomData(String name, BlockPos centerPos) {
+        public EscapeRoomData(String name, BlockPos centerPos, int radius) {
             this.name = name;
             this.centerPos = centerPos;
+            this.radius = radius;
             this.entities = new ArrayList<>();
         }
 
@@ -43,6 +49,7 @@ public class EscapeRoomManager {
             tag.putInt("CenterX", centerPos.getX());
             tag.putInt("CenterY", centerPos.getY());
             tag.putInt("CenterZ", centerPos.getZ());
+            tag.putInt("Radius", radius);
 
             ListTag entitiesList = new ListTag();
             for (EntitySnapshot snapshot : entities) {
@@ -60,8 +67,9 @@ public class EscapeRoomManager {
                     tag.getInt("CenterY"),
                     tag.getInt("CenterZ")
             );
+            int radius = tag.contains("Radius") ? tag.getInt("Radius") : 15;
 
-            EscapeRoomData data = new EscapeRoomData(name, center);
+            EscapeRoomData data = new EscapeRoomData(name, center, radius);
 
             ListTag entitiesList = tag.getList("Entities", 10);
             for (int i = 0; i < entitiesList.size(); i++) {
@@ -226,12 +234,106 @@ public class EscapeRoomManager {
         }
     }
 
+    public static void loadInstances() {
+        instancePositions.clear();
+        if (!INSTANCES_FILE.exists()) return;
+
+        try {
+            CompoundTag tag = NbtIo.readCompressed(INSTANCES_FILE.toPath(), NbtAccounter.unlimitedHeap());
+
+            if (tag.contains("Rooms", 9)) {  // 9 = ListTag
+                ListTag roomsList = tag.getList("Rooms", 10); // 10 = CompoundTag
+
+                for (int i = 0; i < roomsList.size(); i++) {
+                    CompoundTag roomTag = roomsList.getCompound(i);
+                    String roomName = roomTag.getString("Name");
+
+                    if (roomTag.contains("Positions", 9)) {
+                        ListTag posList = roomTag.getList("Positions", 10);
+                        List<BlockPos> positions = new ArrayList<>();
+
+                        for (int j = 0; j < posList.size(); j++) {
+                            CompoundTag posTag = posList.getCompound(j);
+                            positions.add(new BlockPos(
+                                    posTag.getInt("X"),
+                                    posTag.getInt("Y"),
+                                    posTag.getInt("Z")
+                            ));
+                        }
+                        if (!positions.isEmpty()) {
+                            instancePositions.put(roomName, positions);
+                        }
+                    }
+                }
+            }
+            System.out.println("§a[EscapeRoom] Instancias cargadas: " + instancePositions.size() + " rooms");
+        } catch (Exception e) {
+            System.err.println("§cError cargando instancias.dat: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static void saveInstances() {
+        try {
+            CompoundTag tag = new CompoundTag();
+            ListTag roomsList = new ListTag();
+
+            for (Map.Entry<String, List<BlockPos>> entry : instancePositions.entrySet()) {
+                CompoundTag roomTag = new CompoundTag();
+                roomTag.putString("Name", entry.getKey());
+
+                ListTag posList = new ListTag();
+                for (BlockPos pos : entry.getValue()) {
+                    CompoundTag posTag = new CompoundTag();
+                    posTag.putInt("X", pos.getX());
+                    posTag.putInt("Y", pos.getY());
+                    posTag.putInt("Z", pos.getZ());
+                    posList.add(posTag);
+                }
+                roomTag.put("Positions", posList);
+                roomsList.add(roomTag);
+            }
+
+            tag.put("Rooms", roomsList);
+
+            INSTANCES_FILE.getParentFile().mkdirs();
+            NbtIo.writeCompressed(tag, INSTANCES_FILE.toPath());
+
+        } catch (Exception e) {
+            System.err.println("§cError guardando instancias: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static void addInstancePosition(String roomName, BlockPos pos) {
+        instancePositions.computeIfAbsent(roomName, k -> new ArrayList<>()).add(pos);
+        saveInstances();
+    }
+
+    public static List<BlockPos> getInstancePositions(String roomName) {
+        return instancePositions.getOrDefault(roomName, List.of());
+    }
+
+    public static boolean removeInstance(String roomName, int index) {
+        List<BlockPos> positions = instancePositions.get(roomName);
+        if (positions == null || index < 0 || index >= positions.size()) return false;
+        positions.remove(index);
+        if (positions.isEmpty()) instancePositions.remove(roomName);
+        saveInstances();
+        return true;
+    }
+
+    public static void clearAllInstances(String roomName) {
+        instancePositions.remove(roomName);
+        saveInstances();
+    }
+
     /**
      * Captura todas las entidades en un área y las guarda con coordenadas relativas
      */
     public static EscapeRoomData captureArea(ServerLevel level, BlockPos centerPos,
                                              int radius, String name) {
-        EscapeRoomData data = new EscapeRoomData(name, centerPos);
+        EscapeRoomData data = new EscapeRoomData(name, centerPos, radius);
 
         AABB area = new AABB(centerPos).inflate(radius);
         Vec3 center = Vec3.atCenterOf(centerPos);
@@ -271,7 +373,8 @@ public class EscapeRoomManager {
         AABB area = new AABB(centerPos).inflate(radius);
 
         List<Entity> entities = level.getEntities((Entity) null, area,
-                entity -> entity instanceof com.github.razorplay01.entity.custom.BaseEntity);
+                entity -> entity instanceof BaseEntity ||
+                        entity instanceof UblablaEntity);
 
         for (Entity entity : entities) {
             entity.discard();
@@ -283,7 +386,7 @@ public class EscapeRoomManager {
      */
     public static void restoreAt(ServerLevel level, EscapeRoomData data, BlockPos newCenterPos) {
         Vec3 newCenter = Vec3.atCenterOf(newCenterPos);
-
+        clearArea(level, newCenterPos, data.getRadius() + 5);
         for (EntitySnapshot snapshot : data.getEntities()) {
             // Calcular posición absoluta
             Vec3 relPos = snapshot.getRelativePos();

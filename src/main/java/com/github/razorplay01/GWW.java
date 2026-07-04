@@ -46,6 +46,7 @@ public class GWW implements ModInitializer, ClientModInitializer {
     public void onInitialize() {
         FabricCustomPayload.register();
         ServerNetworkManager.register();
+        EscapeRoomManager.loadInstances();
         ServerTickEvents.START_SERVER_TICK.register(server -> {
             if (currentGame != null && currentGame.isActive()) {
                 boolean sigue = currentGame.tick(server);

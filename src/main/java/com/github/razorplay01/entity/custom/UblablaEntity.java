@@ -337,6 +337,11 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
             return;
         }
 
+        int chaseTimerSeconds = (CHASE_MAX_DURATION - chaseTimer) / 20;
+        if (chaseTimerSeconds > 0) {
+            showActionBarMessage("§eUblabla te atrapara en... §c" + chaseTimerSeconds + "s");
+        }
+
         // ¿Se acabó el tiempo?
         if (chaseTimer >= CHASE_MAX_DURATION) {
             broadcastMessage("§cNo me queda otra opción que utilizar mi arma secreta.");
