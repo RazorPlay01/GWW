@@ -3,6 +3,7 @@ package com.github.razorplay01.entity.custom;
 import com.github.razorplay01.item.ModItems;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -220,19 +221,14 @@ public class CajaHerramientasEntity extends BaseEntity {
         tag.putBoolean("IsOpen", isOpen());
         tag.putBoolean("ItemsSpawned", itemsSpawned);
 
-        // Guardar contenido de la caja
         HolderLookup.Provider provider = this.level().registryAccess();
-        CompoundTag contentsTag = new CompoundTag();
-
-        for (int i = 0; i < boxContents.size(); i++) {
-            ItemStack stack = boxContents.get(i);
+        ListTag list = new ListTag();
+        for (ItemStack stack : boxContents) {
             if (!stack.isEmpty()) {
-                CompoundTag itemTag = (CompoundTag) stack.save(provider);
-                contentsTag.put("Item" + i, itemTag);
+                list.add(stack.save(provider));
             }
         }
-        contentsTag.putInt("Size", boxContents.size());
-        tag.put("BoxContents", contentsTag);
+        tag.put("BoxContents", list);
     }
 
     @Override
@@ -241,13 +237,26 @@ public class CajaHerramientasEntity extends BaseEntity {
         setOpen(tag.getBoolean("IsOpen"));
         itemsSpawned = tag.getBoolean("ItemsSpawned");
 
-        // Cargar contenido de la caja
-        if (tag.contains("BoxContents")) {
-            HolderLookup.Provider provider = this.level().registryAccess();
+        HolderLookup.Provider provider = this.level().registryAccess();
+
+        // Limpiar contenido actual
+        boxContents.clear();
+
+        // Intentar leer como ListTag (nuevo formato)
+        if (tag.contains("BoxContents", 9)) { // 9 = ListTag
+            ListTag list = tag.getList("BoxContents", 10); // 10 = CompoundTag
+            for (int i = 0; i < list.size(); i++) {
+                CompoundTag itemTag = list.getCompound(i);
+                ItemStack stack = ItemStack.parseOptional(provider, itemTag);
+                if (!stack.isEmpty()) {
+                    boxContents.add(stack);
+                }
+            }
+        }
+        // Si no, intentar leer el formato antiguo (CompoundTag con "Item0", etc.)
+        else if (tag.contains("BoxContents", 10)) { // 10 = CompoundTag
             CompoundTag contentsTag = tag.getCompound("BoxContents");
             int size = contentsTag.getInt("Size");
-
-            boxContents.clear();
             for (int i = 0; i < size; i++) {
                 if (contentsTag.contains("Item" + i)) {
                     CompoundTag itemTag = contentsTag.getCompound("Item" + i);
@@ -259,7 +268,7 @@ public class CajaHerramientasEntity extends BaseEntity {
             }
         }
 
-        // Si no hay contenido guardado, usar default
+        // Si no se cargó ningún contenido, usar los valores por defecto
         if (boxContents.isEmpty()) {
             initializeDefaultContents();
         }

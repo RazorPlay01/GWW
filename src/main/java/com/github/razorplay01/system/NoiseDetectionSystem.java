@@ -64,6 +64,7 @@ public class NoiseDetectionSystem {
     }
 
     public static void addNoise(ServerPlayer player, float amount) {
+        if (player == null) return;
         UUID leaderId = getGroupLeader(player.getUUID());
         PlayerNoiseData data = getPlayerData(leaderId);
         if (!data.isEnabled()) return;
