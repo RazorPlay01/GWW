@@ -22,7 +22,6 @@ public class EscapeRoomCommands {
         /* This utility class should not be instantiated */
     }
 
-
     private static final Map<String, EscapeRoomData> loadedRooms = new HashMap<>();
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -59,7 +58,7 @@ public class EscapeRoomCommands {
                         )
                 )
 
-                // NUEVO: Pegar en coordenadas específicas
+                // Pegar en coordenadas específicas
                 .then(Commands.literal("pasteat")
                         .then(Commands.argument("name", StringArgumentType.string())
                                 .then(Commands.argument("pos", BlockPosArgument.blockPos())
@@ -75,7 +74,7 @@ public class EscapeRoomCommands {
                         )
                 )
 
-                // NUEVO: Limpiar en coordenadas específicas
+                // Limpiar en coordenadas específicas
                 .then(Commands.literal("clearat")
                         .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                 .then(Commands.argument("radius", IntegerArgumentType.integer(1, 100))
@@ -96,6 +95,7 @@ public class EscapeRoomCommands {
                         )
                 )
 
+                // Subcomandos para instancias
                 .then(Commands.literal("instance")
                         .then(Commands.literal("add")
                                 .then(Commands.argument("roomname", StringArgumentType.string())
@@ -122,10 +122,71 @@ public class EscapeRoomCommands {
         );
     }
 
+    // ==================== MÉTODOS AUXILIARES ====================
+
+    /**
+     * Asegura que el preset con el nombre dado esté cargado en memoria.
+     * Si ya está cargado, devuelve true. Si no, intenta cargarlo desde el archivo.
+     * En caso de error, envía un mensaje de error al source y devuelve false.
+     */
+    private static boolean ensurePresetLoaded(String name, CommandSourceStack source) {
+        if (loadedRooms.containsKey(name)) {
+            return true;
+        }
+
+        // Intentar cargar desde archivo
+        File file = new File("escaperooms/" + name + ".dat");
+        if (!file.exists()) {
+            source.sendFailure(Component.literal(
+                    "§cEl preset '" + name + "' no existe como archivo. Debes guardarlo primero con /escaperoom save <nombre>."
+            ));
+            return false;
+        }
+
+        try {
+            EscapeRoomData data = EscapeRoomManager.loadFromFile(file);
+            loadedRooms.put(name, data);
+            source.sendSuccess(() -> Component.literal(
+                    "§aPreset '" + name + "' cargado automáticamente desde archivo."
+            ), true);
+            return true;
+        } catch (Exception e) {
+            source.sendFailure(Component.literal(
+                    "§cError al cargar el preset '" + name + "': " + e.getMessage()
+            ));
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Obtiene la posición de una instancia guardada por su índice.
+     * Si el índice no es válido, envía un mensaje de error y devuelve null.
+     */
+    private static BlockPos getPositionById(String room, String idStr, CommandSourceStack source) {
+        List<BlockPos> positions = EscapeRoomManager.getInstancePositions(room);
+        if (positions.isEmpty()) {
+            source.sendFailure(Component.literal("§cNo hay posiciones guardadas para '" + room + "'."));
+            return null;
+        }
+        try {
+            int index = Integer.parseInt(idStr);
+            if (index < 0 || index >= positions.size()) {
+                source.sendFailure(Component.literal("§cÍndice inválido. Rango: 0 - " + (positions.size() - 1)));
+                return null;
+            }
+            return positions.get(index);
+        } catch (NumberFormatException e) {
+            source.sendFailure(Component.literal("§cEl ID debe ser un número entero."));
+            return null;
+        }
+    }
+
+    // ==================== COMANDOS PRINCIPALES ====================
+
     private static int capture(CommandContext<CommandSourceStack> context) {
         String name = StringArgumentType.getString(context, "name");
         int radius = IntegerArgumentType.getInteger(context, "radius");
-
         CommandSourceStack source = context.getSource();
         ServerLevel level = source.getLevel();
         BlockPos pos = BlockPos.containing(source.getPosition());
@@ -137,7 +198,6 @@ public class EscapeRoomCommands {
                 "§aEscape room '" + name + "' capturado con " +
                         data.getEntities().size() + " entidades en " + pos.toShortString()
         ), true);
-
         return 1;
     }
 
@@ -146,17 +206,16 @@ public class EscapeRoomCommands {
         CommandSourceStack source = context.getSource();
 
         if (!loadedRooms.containsKey(name)) {
-            source.sendFailure(Component.literal("§cEscape room '" + name + "' no encontrado"));
+            source.sendFailure(Component.literal("§cEl preset '" + name + "' no está cargado en memoria."));
             return 0;
         }
 
         try {
             File file = new File("escaperooms/" + name + ".dat");
             file.getParentFile().mkdirs();
-
             EscapeRoomManager.saveToFile(loadedRooms.get(name), file);
             source.sendSuccess(() -> Component.literal(
-                    "§aEscape room '" + name + "' guardado en archivo"
+                    "§aEscape room '" + name + "' guardado en archivo."
             ), true);
             return 1;
         } catch (Exception e) {
@@ -196,14 +255,12 @@ public class EscapeRoomCommands {
         String name = StringArgumentType.getString(context, "name");
         CommandSourceStack source = context.getSource();
 
-        if (!loadedRooms.containsKey(name)) {
-            source.sendFailure(Component.literal("§cEscape room '" + name + "' no encontrado. Usa /escaperoom load <name> primero"));
+        if (!ensurePresetLoaded(name, source)) {
             return 0;
         }
 
         ServerLevel level = source.getLevel();
         BlockPos pos = BlockPos.containing(source.getPosition());
-
         EscapeRoomManager.restoreAt(level, loadedRooms.get(name), pos);
 
         source.sendSuccess(() -> Component.literal(
@@ -216,14 +273,12 @@ public class EscapeRoomCommands {
         String name = StringArgumentType.getString(context, "name");
         CommandSourceStack source = context.getSource();
 
-        if (!loadedRooms.containsKey(name)) {
-            source.sendFailure(Component.literal("§cEscape room '" + name + "' no encontrado. Usa /escaperoom load <name> primero"));
+        if (!ensurePresetLoaded(name, source)) {
             return 0;
         }
 
         ServerLevel level = source.getLevel();
         BlockPos pos = BlockPosArgument.getBlockPos(context, "pos");
-
         EscapeRoomManager.restoreAt(level, loadedRooms.get(name), pos);
 
         source.sendSuccess(() -> Component.literal(
@@ -235,7 +290,6 @@ public class EscapeRoomCommands {
     private static int clear(CommandContext<CommandSourceStack> context) {
         int radius = IntegerArgumentType.getInteger(context, "radius");
         CommandSourceStack source = context.getSource();
-
         ServerLevel level = source.getLevel();
         BlockPos pos = BlockPos.containing(source.getPosition());
 
@@ -250,7 +304,6 @@ public class EscapeRoomCommands {
     private static int clearAt(CommandContext<CommandSourceStack> context) {
         int radius = IntegerArgumentType.getInteger(context, "radius");
         CommandSourceStack source = context.getSource();
-
         ServerLevel level = source.getLevel();
         BlockPos pos = BlockPosArgument.getBlockPos(context, "pos");
 
@@ -266,7 +319,7 @@ public class EscapeRoomCommands {
         CommandSourceStack source = context.getSource();
 
         if (loadedRooms.isEmpty()) {
-            source.sendSuccess(() -> Component.literal("§eNo hay escape rooms cargados"), false);
+            source.sendSuccess(() -> Component.literal("§eNo hay escape rooms cargados."), false);
             return 1;
         }
 
@@ -283,8 +336,7 @@ public class EscapeRoomCommands {
         String name = StringArgumentType.getString(context, "name");
         CommandSourceStack source = context.getSource();
 
-        if (!loadedRooms.containsKey(name)) {
-            source.sendFailure(Component.literal("§cEscape room '" + name + "' no encontrado"));
+        if (!ensurePresetLoaded(name, source)) {
             return 0;
         }
 
@@ -293,7 +345,7 @@ public class EscapeRoomCommands {
         source.sendSuccess(() -> Component.literal("§eCentro: §f" + data.getCenterPos().toShortString()), false);
         source.sendSuccess(() -> Component.literal("§eEntidades: §f" + data.getEntities().size()), false);
 
-        // Mostrar tipos de entidades
+        // Desglose por tipo
         Map<String, Integer> entityTypes = new HashMap<>();
         data.getEntities().forEach(snapshot -> {
             String type = snapshot.getEntityType();
@@ -306,11 +358,22 @@ public class EscapeRoomCommands {
         return 1;
     }
 
+    // ==================== COMANDOS DE INSTANCIAS (MODIFICADOS) ====================
+
     private static int instanceAdd(CommandContext<CommandSourceStack> context) {
         String room = StringArgumentType.getString(context, "roomname");
         BlockPos pos = BlockPosArgument.getBlockPos(context, "pos");
+        CommandSourceStack source = context.getSource();
+
+        // Verificar que el preset existe antes de añadir la posición
+        if (!ensurePresetLoaded(room, source)) {
+            return 0;
+        }
+
         EscapeRoomManager.addInstancePosition(room, pos);
-        context.getSource().sendSuccess(() -> Component.literal("§aPosición añadida para " + room), true);
+        source.sendSuccess(() -> Component.literal(
+                "§aPosición añadida para '" + room + "' en " + pos.toShortString()
+        ), true);
         return 1;
     }
 
@@ -320,14 +383,16 @@ public class EscapeRoomCommands {
         CommandSourceStack source = context.getSource();
 
         if (positions.isEmpty()) {
-            source.sendFailure(Component.literal("§cNo hay instancias para " + room));
+            source.sendFailure(Component.literal("§cNo hay instancias guardadas para '" + room + "'."));
             return 0;
         }
 
         source.sendSuccess(() -> Component.literal("§6=== Instancias de " + room + " ==="), false);
         for (int i = 0; i < positions.size(); i++) {
             int finalI = i;
-            source.sendSuccess(() -> Component.literal("§e" + finalI + ": " + positions.get(finalI).toShortString()), false);
+            source.sendSuccess(() -> Component.literal(
+                    "§e" + finalI + ": " + positions.get(finalI).toShortString()
+            ), false);
         }
         return 1;
     }
@@ -337,18 +402,22 @@ public class EscapeRoomCommands {
         String idStr = StringArgumentType.getString(context, "id");
         CommandSourceStack source = context.getSource();
 
-        if (!loadedRooms.containsKey(room)) {
-            source.sendFailure(Component.literal("§cRoom no cargado. Usa /escaperoom load primero"));
+        // Asegurar que el preset está cargado (intenta cargar automáticamente)
+        if (!ensurePresetLoaded(room, source)) {
             return 0;
         }
 
         BlockPos pos = getPositionById(room, idStr, source);
-        if (pos == null) return 0;
+        if (pos == null) {
+            return 0;
+        }
 
         EscapeRoomManager.clearArea(source.getLevel(), pos, 60);
         EscapeRoomManager.restoreAt(source.getLevel(), loadedRooms.get(room), pos);
 
-        source.sendSuccess(() -> Component.literal("§aInstancia creada en " + pos.toShortString()), true);
+        source.sendSuccess(() -> Component.literal(
+                "§aInstancia creada en " + pos.toShortString()
+        ), true);
         return 1;
     }
 
@@ -356,14 +425,13 @@ public class EscapeRoomCommands {
         String room = StringArgumentType.getString(context, "roomname");
         CommandSourceStack source = context.getSource();
 
-        if (!loadedRooms.containsKey(room)) {
-            source.sendFailure(Component.literal("§cRoom no cargado"));
+        if (!ensurePresetLoaded(room, source)) {
             return 0;
         }
 
         List<BlockPos> positions = EscapeRoomManager.getInstancePositions(room);
         if (positions.isEmpty()) {
-            source.sendFailure(Component.literal("§cNo hay posiciones guardadas"));
+            source.sendFailure(Component.literal("§cNo hay posiciones guardadas para '" + room + "'."));
             return 0;
         }
 
@@ -374,7 +442,9 @@ public class EscapeRoomCommands {
             EscapeRoomManager.restoreAt(level, data, pos);
         }
 
-        source.sendSuccess(() -> Component.literal("§aSe crearon " + positions.size() + " instancias de " + room), true);
+        source.sendSuccess(() -> Component.literal(
+                "§aSe crearon " + positions.size() + " instancias de '" + room + "'."
+        ), true);
         return 1;
     }
 
@@ -386,12 +456,12 @@ public class EscapeRoomCommands {
         try {
             int index = Integer.parseInt(idStr);
             if (EscapeRoomManager.removeInstance(room, index)) {
-                source.sendSuccess(() -> Component.literal("§cInstancia eliminada"), true);
+                source.sendSuccess(() -> Component.literal("§cInstancia eliminada."), true);
             } else {
-                source.sendFailure(Component.literal("§cÍndice inválido"));
+                source.sendFailure(Component.literal("§cÍndice inválido o no hay instancias."));
             }
-        } catch (Exception e) {
-            source.sendFailure(Component.literal("§cUsa un número válido"));
+        } catch (NumberFormatException e) {
+            source.sendFailure(Component.literal("§cEl ID debe ser un número entero."));
         }
         return 1;
     }
@@ -399,26 +469,9 @@ public class EscapeRoomCommands {
     private static int instanceClearAll(CommandContext<CommandSourceStack> context) {
         String room = StringArgumentType.getString(context, "roomname");
         EscapeRoomManager.clearAllInstances(room);
-        context.getSource().sendSuccess(() -> Component.literal("§cTodas las instancias de " + room + " eliminadas"), true);
+        context.getSource().sendSuccess(() -> Component.literal(
+                "§cTodas las instancias de '" + room + "' han sido eliminadas."
+        ), true);
         return 1;
-    }
-
-    private static BlockPos getPositionById(String room, String idStr, CommandSourceStack source) {
-        List<BlockPos> positions = EscapeRoomManager.getInstancePositions(room);
-        if (positions.isEmpty()) {
-            source.sendFailure(Component.literal("§cNo hay posiciones para este room"));
-            return null;
-        }
-        try {
-            int index = Integer.parseInt(idStr);
-            if (index < 0 || index >= positions.size()) {
-                source.sendFailure(Component.literal("§cÍndice fuera de rango"));
-                return null;
-            }
-            return positions.get(index);
-        } catch (Exception e) {
-            source.sendFailure(Component.literal("§cUsa el número de índice"));
-            return null;
-        }
     }
 }
