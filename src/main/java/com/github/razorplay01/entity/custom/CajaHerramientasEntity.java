@@ -4,6 +4,7 @@ import com.github.razorplay01.item.ModItems;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -17,7 +18,6 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.animation.AnimatableManager;
@@ -35,17 +35,16 @@ public class CajaHerramientasEntity extends BaseEntity {
     private static final RawAnimation ANIMATION_IDLE = RawAnimation.begin().thenLoop("animation.idle");
     private static final RawAnimation ANIMATION_OPEN = RawAnimation.begin().thenPlayAndHold("animation.open");
 
-    // Items que saldrán de la caja (personalizables)
+    // Items que saldrán de la caja (configurable desde NBT)
     private final List<ItemStack> boxContents = new ArrayList<>();
 
-    // Control para spawneo de items
     private boolean itemsSpawned = false;
     private int openAnimationTicks = 0;
-    private static final int SPAWN_DELAY = 10; // Ticks antes de lanzar items
+    private static final int SPAWN_DELAY = 10;
 
     public CajaHerramientasEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
         super(entityType, level);
-        initializeDefaultContents();
+        // Sin contenido por defecto; se debe configurar mediante NBT o setter
     }
 
     @Override
@@ -54,30 +53,7 @@ public class CajaHerramientasEntity extends BaseEntity {
         builder.define(IS_OPEN, false);
     }
 
-    /**
-     * Inicializa el contenido por defecto de la caja
-     */
-    private void initializeDefaultContents() {
-        boxContents.clear();
-        boxContents.add(new ItemStack(ModItems.FUSIBLE_ROJO, 1));
-        boxContents.add(new ItemStack(ModItems.FUSIBLE_VERDE, 1));
-        boxContents.add(new ItemStack(ModItems.HOJA_PISTA, 1));
-    }
-
-    /**
-     * Permite personalizar los items de la caja
-     */
-    public void setBoxContents(List<ItemStack> contents) {
-        this.boxContents.clear();
-        this.boxContents.addAll(contents);
-    }
-
-    /**
-     * Añade un item al contenido de la caja
-     */
-    public void addBoxContent(ItemStack stack) {
-        this.boxContents.add(stack);
-    }
+    // ========== GETTERS / SETTERS ==========
 
     public boolean isOpen() {
         return this.entityData.get(IS_OPEN);
@@ -87,31 +63,65 @@ public class CajaHerramientasEntity extends BaseEntity {
         this.entityData.set(IS_OPEN, open);
         if (open && !this.level().isClientSide) {
             openAnimationTicks = 0;
-            // Sonido de apertura
             this.level().playSound(null, this.blockPosition(),
                     SoundEvents.CHEST_OPEN, SoundSource.BLOCKS,
                     1.0F, 1.0F);
         }
     }
 
+    /**
+     * Establece el contenido de la caja (copia los ItemStack).
+     */
+    public void setBoxContents(List<ItemStack> contents) {
+        this.boxContents.clear();
+        for (ItemStack stack : contents) {
+            if (!stack.isEmpty()) {
+                this.boxContents.add(stack.copy());
+            }
+        }
+    }
+
+    /**
+     * Añade un item al contenido.
+     */
+    public void addBoxContent(ItemStack stack) {
+        if (!stack.isEmpty()) {
+            this.boxContents.add(stack.copy());
+        }
+    }
+
+    /**
+     * Devuelve una copia de la lista de contenido.
+     */
+    public List<ItemStack> getBoxContents() {
+        return new ArrayList<>(boxContents);
+    }
+
+    // ========== ATRIBUTOS ==========
+
     public static AttributeSupplier.Builder setAttributes() {
         return PathfinderMob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, Double.POSITIVE_INFINITY);
     }
 
+    // ========== TICK ==========
+
     @Override
     public void tick() {
         super.tick();
 
-        if (!this.level().isClientSide && isOpen() && !itemsSpawned) {
-            openAnimationTicks++;
+        if (this.level().isClientSide) return;
 
+        if (isOpen() && !itemsSpawned) {
+            openAnimationTicks++;
             if (openAnimationTicks >= SPAWN_DELAY) {
                 spawnBoxContents();
                 itemsSpawned = true;
             }
         }
     }
+
+    // ========== ANIMACIONES ==========
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
@@ -125,6 +135,8 @@ public class CajaHerramientasEntity extends BaseEntity {
         ));
     }
 
+    // ========== INTERACCIÓN ==========
+
     @Override
     public void handleNormalInteract(Player player) {
         if (!player.level().isClientSide) {
@@ -134,7 +146,7 @@ public class CajaHerramientasEntity extends BaseEntity {
                     setOpen(true);
                     player.sendSystemMessage(Component.literal("§a¡Has abierto la caja de herramientas!"));
                 } else {
-                    player.sendSystemMessage(Component.literal("§cNecesitas un §bobjeto §cpara abrir esta caja"));
+                    player.sendSystemMessage(Component.literal("§cNecesitas una §bganzúa §cpara abrir esta caja"));
                 }
             } else {
                 player.sendSystemMessage(Component.literal("§7La caja ya está abierta"));
@@ -142,16 +154,10 @@ public class CajaHerramientasEntity extends BaseEntity {
         }
     }
 
-    /**
-     * Verifica si el jugador tiene el item requerido (diamante)
-     */
     private boolean hasRequiredItem(Player player) {
         return player.getInventory().contains(new ItemStack(ModItems.GANZUA));
     }
 
-    /**
-     * Consume el item requerido del inventario del jugador
-     */
     private void consumeRequiredItem(Player player) {
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
@@ -162,19 +168,18 @@ public class CajaHerramientasEntity extends BaseEntity {
         }
     }
 
-    /**
-     * Spawna los items del contenido de la caja disparados hacia arriba
-     */
+    // ========== SPANWEO DE ITEMS ==========
+
     private void spawnBoxContents() {
         if (this.level().isClientSide || boxContents.isEmpty()) {
             return;
         }
 
         Vec3 centerPos = this.position().add(0, 0.5, 0);
+        int count = boxContents.size();
 
-        for (int i = 0; i < boxContents.size(); i++) {
+        for (int i = 0; i < count; i++) {
             ItemStack stack = boxContents.get(i).copy();
-
             if (stack.isEmpty()) continue;
 
             ItemEntity itemEntity = new ItemEntity(
@@ -185,10 +190,9 @@ public class CajaHerramientasEntity extends BaseEntity {
                     stack
             );
 
-            // Calcular velocidad con dispersión
-            double angle = (Math.PI * 2 * i) / boxContents.size();
+            // Dispersión circular
+            double angle = (Math.PI * 2 * i) / count;
             double horizontalSpeed = 0.1;
-
             double motionX = Math.cos(angle) * horizontalSpeed;
             double motionY = 0.4 + (i * 0.05);
             double motionZ = Math.sin(angle) * horizontalSpeed;
@@ -199,21 +203,21 @@ public class CajaHerramientasEntity extends BaseEntity {
             this.level().addFreshEntity(itemEntity);
         }
 
-        // Sonido de items saliendo
         this.level().playSound(null, this.blockPosition(),
                 SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS,
                 0.8F, 0.6F);
     }
 
-    /**
-     * Resetea la caja a su estado cerrado
-     */
+    // ========== RESET ==========
+
     public void reset() {
         setOpen(false);
         itemsSpawned = false;
         openAnimationTicks = 0;
-        initializeDefaultContents();
+        // No se restaura contenido por defecto
     }
+
+    // ========== NBT ==========
 
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
@@ -221,14 +225,14 @@ public class CajaHerramientasEntity extends BaseEntity {
         tag.putBoolean("IsOpen", isOpen());
         tag.putBoolean("ItemsSpawned", itemsSpawned);
 
+        ListTag itemList = new ListTag();
         HolderLookup.Provider provider = this.level().registryAccess();
-        ListTag list = new ListTag();
         for (ItemStack stack : boxContents) {
             if (!stack.isEmpty()) {
-                list.add(stack.save(provider));
+                itemList.add(stack.save(provider));
             }
         }
-        tag.put("BoxContents", list);
+        tag.put("BoxContents", itemList);
     }
 
     @Override
@@ -237,14 +241,11 @@ public class CajaHerramientasEntity extends BaseEntity {
         setOpen(tag.getBoolean("IsOpen"));
         itemsSpawned = tag.getBoolean("ItemsSpawned");
 
-        HolderLookup.Provider provider = this.level().registryAccess();
-
-        // Limpiar contenido actual
         boxContents.clear();
 
-        // Intentar leer como ListTag (nuevo formato)
-        if (tag.contains("BoxContents", 9)) { // 9 = ListTag
-            ListTag list = tag.getList("BoxContents", 10); // 10 = CompoundTag
+        if (tag.contains("BoxContents", Tag.TAG_LIST)) {
+            ListTag list = tag.getList("BoxContents", Tag.TAG_COMPOUND);
+            HolderLookup.Provider provider = this.level().registryAccess();
             for (int i = 0; i < list.size(); i++) {
                 CompoundTag itemTag = list.getCompound(i);
                 ItemStack stack = ItemStack.parseOptional(provider, itemTag);
@@ -252,25 +253,6 @@ public class CajaHerramientasEntity extends BaseEntity {
                     boxContents.add(stack);
                 }
             }
-        }
-        // Si no, intentar leer el formato antiguo (CompoundTag con "Item0", etc.)
-        else if (tag.contains("BoxContents", 10)) { // 10 = CompoundTag
-            CompoundTag contentsTag = tag.getCompound("BoxContents");
-            int size = contentsTag.getInt("Size");
-            for (int i = 0; i < size; i++) {
-                if (contentsTag.contains("Item" + i)) {
-                    CompoundTag itemTag = contentsTag.getCompound("Item" + i);
-                    ItemStack stack = ItemStack.parseOptional(provider, itemTag);
-                    if (!stack.isEmpty()) {
-                        boxContents.add(stack);
-                    }
-                }
-            }
-        }
-
-        // Si no se cargó ningún contenido, usar los valores por defecto
-        if (boxContents.isEmpty()) {
-            initializeDefaultContents();
         }
     }
 }

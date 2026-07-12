@@ -11,17 +11,22 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.animation.AnimatableManager;
@@ -30,11 +35,10 @@ import software.bernie.geckolib.animation.RawAnimation;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 public class CajaEntity extends BaseEntity {
 
-    // ========== DATOS SINCRONIZADOS (solo para el estado de apertura) ==========
+    // ========== DATOS SINCRONIZADOS (estado de apertura) ==========
     private static final EntityDataAccessor<Boolean> IS_OPEN =
             SynchedEntityData.defineId(CajaEntity.class, EntityDataSerializers.BOOLEAN);
 
@@ -42,11 +46,15 @@ public class CajaEntity extends BaseEntity {
     private static final RawAnimation ANIMATION_IDLE = RawAnimation.begin().thenLoop("animation.idle");
     private static final RawAnimation ANIMATION_OPEN = RawAnimation.begin().thenPlayAndHold("animation.open");
 
-    // ========== CONTENIDO CONFIGURABLE (variables de instancia, guardadas en NBT) ==========
+    // ========== CONTENIDO CONFIGURABLE ==========
+    // Lista de ItemStack (cada uno con su NBT completo, como en /give)
     private final List<ItemStack> boxContents = new ArrayList<>();
-    private String spawnEntityType = "";
-    private CompoundTag spawnEntityData = new CompoundTag();
-    private int activeLootTableIndex = 0; // Solo para compatibilidad legacy
+
+    // NBT completo para la entidad a invocar (formato /summon, obligatorio campo "id")
+    private CompoundTag spawnNbt = new CompoundTag();
+
+    // Offset relativo a la posición de la caja (defecto: (0, 0.2, 0))
+    private Vec3 spawnOffset = new Vec3(0, 0.2, 0);
 
     // ========== ESTADO INTERNO ==========
     private boolean itemsSpawned = false;
@@ -58,6 +66,7 @@ public class CajaEntity extends BaseEntity {
 
     public CajaEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
         super(entityType, level);
+        // Inicialmente no hay contenido; se establecerá vía NBT o por defecto en read
     }
 
     // ========== DEFINE SYNC DATA ==========
@@ -82,12 +91,31 @@ public class CajaEntity extends BaseEntity {
         }
     }
 
-    public int getActiveLootTableIndex() {
-        return activeLootTableIndex;
+    // NBT de spawn (debe contener "id")
+    public CompoundTag getSpawnNbt() {
+        return spawnNbt;
     }
 
-    public void setActiveLootTableIndex(int index) {
-        this.activeLootTableIndex = Math.clamp(index, 0, 2);
+    public void setSpawnNbt(CompoundTag nbt) {
+        this.spawnNbt = nbt.copy();
+    }
+
+    // Offset
+    public Vec3 getSpawnOffset() {
+        return spawnOffset;
+    }
+
+    public void setSpawnOffset(Vec3 offset) {
+        this.spawnOffset = offset;
+    }
+
+    public void setSpawnOffset(double x, double y, double z) {
+        this.spawnOffset = new Vec3(x, y, z);
+    }
+
+    // Acceso a la lista de contenidos (para añadir items desde fuera)
+    public List<ItemStack> getBoxContents() {
+        return boxContents;
     }
 
     // ========== ATRIBUTOS ==========
@@ -158,30 +186,20 @@ public class CajaEntity extends BaseEntity {
     private void spawnBoxContents() {
         if (this.level().isClientSide) return;
 
-        // 1. Invocar entidad si está definida
-        if (!spawnEntityType.isEmpty()) {
+        // 1. Si hay NBT de entidad (con "id"), generar entidad
+        if (!spawnNbt.isEmpty() && spawnNbt.contains("id")) {
             spawnSpecialEntity();
             return;
         }
 
-        // 2. Soltar items si hay
+        // 2. Si hay items en la lista, soltarlos
         if (!boxContents.isEmpty()) {
             spawnItemsFromList(boxContents);
             return;
         }
 
-        // 3. Fallback al sistema antiguo (compatibilidad)
-        int tableIndex = getActiveLootTableIndex();
-        if (tableIndex == 2) {
-            spawnEntityType = "escaperoom:valvula";
-            spawnSpecialEntity();
-        } else {
-            List<ItemStack> oldLoot = switch (tableIndex) {
-                case 1 -> createLootTable2();
-                default -> createLootTable1();
-            };
-            spawnItemsFromList(oldLoot);
-        }
+        // 3. No hay contenido definido → no hacer nada
+        // (se puede enviar un log de advertencia si se desea)
     }
 
     private void spawnItemsFromList(List<ItemStack> items) {
@@ -211,55 +229,40 @@ public class CajaEntity extends BaseEntity {
     }
 
     private void spawnSpecialEntity() {
-        if (spawnEntityType.isEmpty()) return;
+        CompoundTag finalNbt = spawnNbt.copy(); // ya contiene "id"
 
-        Optional<EntityType<?>> optionalType = EntityType.byString(spawnEntityType);
-        if (optionalType.isEmpty()) {
-            if (this.level().getServer() != null) {
-                GWW.LOGGER.error("§c[Tipo de entidad no válido: {}]", spawnEntityType);
+        try {
+            ServerLevel serverLevel = (ServerLevel) this.level();
+
+            // Posición de spawn = posición de la caja + offset
+            Vec3 spawnPos = this.position().add(spawnOffset);
+
+            // Usar el mismo método que el comando /summon
+            Entity entity = EntityType.loadEntityRecursive(finalNbt, serverLevel, (e) -> {
+                e.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, e.getYRot(), e.getXRot());
+                return e;
+            });
+
+            if (entity == null) {
+                GWW.LOGGER.error("§c[Falló al crear entidad desde NBT: {}]", finalNbt);
+                return;
             }
-            return;
-        }
 
-        EntityType<?> type = optionalType.get();
-        Entity newEntity = type.create(this.level());
-        if (newEntity == null) return;
-
-        Vec3 spawnPos = this.position().add(0, 0.2, 0);
-        newEntity.setPos(spawnPos.x, spawnPos.y, spawnPos.z);
-        newEntity.setDeltaMovement(0, 0.4, 0);
-
-        if (!spawnEntityData.isEmpty()) {
-            try {
-                CompoundTag entityNbt = new CompoundTag();
-                newEntity.save(entityNbt);
-                spawnEntityData.getAllKeys().forEach(key -> {
-                    if (!key.equals("UUID") && !key.equals("Pos") && !key.equals("Rotation")) {
-                        entityNbt.put(key, spawnEntityData.get(key));
-                    }
-                });
-                newEntity.load(entityNbt);
-            } catch (Exception e) {
-                e.printStackTrace();
+            // Si es un Mob, inicializarlo como en el comando /summon
+            if (entity instanceof Mob mob) {
+                mob.finalizeSpawn(serverLevel, serverLevel.getCurrentDifficultyAt(entity.blockPosition()),
+                        MobSpawnType.COMMAND, (SpawnGroupData) null);
             }
+
+            // Agregar al mundo
+            if (!serverLevel.tryAddFreshEntityWithPassengers(entity)) {
+                GWW.LOGGER.error("§c[No se pudo agregar la entidad (UUID duplicado?)]");
+            }
+
+        } catch (Exception e) {
+            GWW.LOGGER.error("§c[Error al invocar entidad desde NBT: {}]", e.getMessage());
+            e.printStackTrace();
         }
-
-        this.level().addFreshEntity(newEntity);
-    }
-
-    // ========== MÉTODOS LEGACY ==========
-    private List<ItemStack> createLootTable1() {
-        List<ItemStack> loot = new ArrayList<>();
-        loot.add(new ItemStack(ModItems.HOJA_PISTA, 1));
-        loot.add(new ItemStack(ModItems.FUSIBLE_AZUL, 1));
-        return loot;
-    }
-
-    private List<ItemStack> createLootTable2() {
-        List<ItemStack> loot = new ArrayList<>();
-        loot.add(new ItemStack(ModItems.HOJA_PISTA, 1));
-        loot.add(new ItemStack(ModItems.LLAVE_ATICO, 1));
-        return loot;
     }
 
     // ========== RESET ==========
@@ -280,9 +283,8 @@ public class CajaEntity extends BaseEntity {
         super.addAdditionalSaveData(tag);
         tag.putBoolean("IsOpen", isOpen());
         tag.putBoolean("ItemsSpawned", itemsSpawned);
-        tag.putInt("ActiveLootTable", activeLootTableIndex);
 
-        // Guardar items
+        // Guardar items (cada uno con todo su NBT)
         ListTag itemList = new ListTag();
         var provider = this.level().registryAccess();
         for (ItemStack stack : boxContents) {
@@ -292,13 +294,15 @@ public class CajaEntity extends BaseEntity {
         }
         tag.put("BoxContents", itemList);
 
-        // Guardar entidad a invocar
-        if (!spawnEntityType.isEmpty()) {
-            tag.putString("SpawnEntity", spawnEntityType);
-            if (!spawnEntityData.isEmpty()) {
-                tag.put("SpawnEntityData", spawnEntityData);
-            }
+        // Guardar NBT de spawn (formato /summon)
+        if (!spawnNbt.isEmpty()) {
+            tag.put("SpawnNbt", spawnNbt);
         }
+
+        // Guardar offset
+        tag.putDouble("SpawnOffsetX", spawnOffset.x);
+        tag.putDouble("SpawnOffsetY", spawnOffset.y);
+        tag.putDouble("SpawnOffsetZ", spawnOffset.z);
     }
 
     @Override
@@ -306,14 +310,11 @@ public class CajaEntity extends BaseEntity {
         super.readAdditionalSaveData(tag);
         setOpen(tag.getBoolean("IsOpen"));
         itemsSpawned = tag.getBoolean("ItemsSpawned");
-        if (tag.contains("ActiveLootTable")) {
-            activeLootTableIndex = tag.getInt("ActiveLootTable");
-        }
 
         var provider = this.level().registryAccess();
         boolean hasCustomContent = false;
 
-        // Leer BoxContents
+        // Leer items
         if (tag.contains("BoxContents")) {
             Tag raw = tag.get("BoxContents");
             if (raw instanceof ListTag list) {
@@ -331,23 +332,19 @@ public class CajaEntity extends BaseEntity {
             }
         }
 
-        // Leer SpawnEntity
-        if (tag.contains("SpawnEntity", 8)) {
-            spawnEntityType = tag.getString("SpawnEntity");
-            if (!spawnEntityType.isEmpty()) {
+        // Leer NBT de spawn
+        if (tag.contains("SpawnNbt", 10)) {
+            spawnNbt = tag.getCompound("SpawnNbt").copy();
+            if (!spawnNbt.isEmpty() && spawnNbt.contains("id")) {
                 hasCustomContent = true;
             }
         }
-        if (tag.contains("SpawnEntityData", 10)) {
-            spawnEntityData = tag.getCompound("SpawnEntityData");
-        }
 
-        // Si no se definió contenido personalizado, usar fallback por defecto
-        if (!hasCustomContent) {
-            boxContents.clear();
-            boxContents.add(new ItemStack(ModItems.HOJA_PISTA, 1));
-            boxContents.add(new ItemStack(ModItems.FUSIBLE_AZUL, 1));
-        }
+        // Leer offset
+        double ox = tag.getDouble("SpawnOffsetX");
+        double oy = tag.getDouble("SpawnOffsetY");
+        double oz = tag.getDouble("SpawnOffsetZ");
+        this.spawnOffset = new Vec3(ox, oy, oz);
     }
 
     // ========== COLISIÓN ==========

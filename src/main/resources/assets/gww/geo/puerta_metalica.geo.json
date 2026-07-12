@@ -13,15 +13,15 @@
 			"bones": [
 				{
 					"name": "DoorLeft",
-					"pivot": [16, 0, 0],
+					"pivot": [16, 0, -0.5],
 					"cubes": [
 						{
-							"origin": [0, 0, -1],
+							"origin": [0, 0, -1.5],
 							"size": [16, 32, 3],
 							"uv": {
 								"north": {"uv": [3, 3], "uv_size": [16, 32]},
 								"east": {"uv": [16, 3], "uv_size": [3, 32]},
-								"south": {"uv": [19, 2], "uv_size": [-16, 32]},
+								"south": {"uv": [19, 3], "uv_size": [-16, 32]},
 								"west": {"uv": [16, 3], "uv_size": [3, 32]},
 								"up": {"uv": [3, 3], "uv_size": [16, 3]},
 								"down": {"uv": [3, 35], "uv_size": [16, -3]}
@@ -31,15 +31,15 @@
 				},
 				{
 					"name": "DoorRight",
-					"pivot": [-16, 0, 0],
+					"pivot": [-16, 0, -0.5],
 					"cubes": [
 						{
-							"origin": [-16, 0, -1],
+							"origin": [-16, 0, -1.5],
 							"size": [16, 32, 3],
 							"uv": {
 								"north": {"uv": [19, 3], "uv_size": [-16, 32]},
 								"east": {"uv": [19, 3], "uv_size": [-3, 32]},
-								"south": {"uv": [3, 2], "uv_size": [16, 32]},
+								"south": {"uv": [3, 3], "uv_size": [16, 32]},
 								"west": {"uv": [19, 3], "uv_size": [-3, 32]},
 								"up": {"uv": [19, 3], "uv_size": [-16, 3]},
 								"down": {"uv": [19, 35], "uv_size": [-16, -3]}

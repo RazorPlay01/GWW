@@ -86,7 +86,7 @@ public class ModEntities {
     public static final EntityType<PalancaEntity> PALANCA = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "palanca"),
             EntityType.Builder.of(PalancaEntity::new, MobCategory.MISC)
-                    .sized(0.5f, 0.8f).build());
+                    .sized(0.8f, 0.5f).build());
     public static final EntityType<ValvulaEntity> VALVULA = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "valvula"),
             EntityType.Builder.of(ValvulaEntity::new, MobCategory.MISC)

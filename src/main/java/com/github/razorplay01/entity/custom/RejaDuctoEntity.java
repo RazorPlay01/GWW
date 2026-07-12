@@ -194,8 +194,8 @@ public class RejaDuctoEntity extends BaseEntity {
         double x = this.getX();
         double y = this.getY();
         double z = this.getZ();
-        double height = 4.0;
-        double width = 4.0;
+        double height = 2.0;
+        double width = 2.0;
         double depth = 0.5;
         double hw = width / 2.0;
         double hd = depth / 2.0;
