@@ -1,5 +1,6 @@
 package com.github.razorplay01.cam.core;
 
+import com.github.razorplay01.GWW;
 import com.github.razorplay01.cam.api.CameraModifier;
 import com.github.razorplay01.cam.api.CameraPlugin;
 import com.github.razorplay01.cam.api.ModifierPriority;
@@ -42,7 +43,8 @@ public class ModifierRegistry {
         }
 
         if (modifierMap.containsKey(modifier.getId())) {
-            throw new IllegalArgumentException("Modifier with id " + modifier.getId() + " already registered");
+            GWW.LOGGER.error("Modifier with id {} already registered", modifier.getId());
+            //throw new IllegalArgumentException("Modifier with id " + modifier.getId() + " already registered");
         }
 
         modifierMap.put(modifier.getId(), modifier);

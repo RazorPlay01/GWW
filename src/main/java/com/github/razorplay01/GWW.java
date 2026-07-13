@@ -72,6 +72,7 @@ public class GWW implements ModInitializer, ClientModInitializer {
         FabricDefaultAttributeRegistry.register(ModEntities.CAJA, CajaEntity.setAttributes());
         FabricDefaultAttributeRegistry.register(ModEntities.CUADRO1, Cuadro1Entity.setAttributes());
         FabricDefaultAttributeRegistry.register(ModEntities.CUADRO2, Cuadro2Entity.setAttributes());
+        FabricDefaultAttributeRegistry.register(ModEntities.CUADRO3, Cuadro3Entity.setAttributes());
         FabricDefaultAttributeRegistry.register(ModEntities.REJA_DUCTO, RejaDuctoEntity.setAttributes());
         FabricDefaultAttributeRegistry.register(ModEntities.PUERTA_ATICO, PuertaAticoEntity.setAttributes());
         FabricDefaultAttributeRegistry.register(ModEntities.LUZ_TORTUGA, LuzTortugaEntity.setAttributes());
@@ -119,6 +120,7 @@ public class GWW implements ModInitializer, ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.CAJA, CajaEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.CUADRO1, Cuadro1EntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.CUADRO2, Cuadro2EntityRenderer::new);
+        EntityRendererRegistry.register(ModEntities.CUADRO3, Cuadro3EntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.REJA_DUCTO, RejaDuctoEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.PUERTA_ATICO, PuertaAticoEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.LUZ_TORTUGA, LuzTortugaEntityRenderer::new);

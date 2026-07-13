@@ -39,6 +39,10 @@ public class ModEntities {
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "cuadro_lilith_2"),
             EntityType.Builder.of(Cuadro2Entity::new, MobCategory.MISC)
                     .sized(2f, 2f).build());
+    public static final EntityType<Cuadro3Entity> CUADRO3 = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "cuadro_lilith_3"),
+            EntityType.Builder.of(Cuadro3Entity::new, MobCategory.MISC)
+                    .sized(2f, 2f).build());
 
     public static final EntityType<RejaDuctoEntity> REJA_DUCTO = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "reja_ducto"),
