@@ -81,6 +81,7 @@ public class GWW implements ModInitializer, ClientModInitializer {
         FabricDefaultAttributeRegistry.register(ModEntities.PANEL_FUSIBLES, PanelFusiblesEntity.setAttributes());
         //FabricDefaultAttributeRegistry.register(ModEntities.MYSTIC_ORB, MysticOrbEntity.setAttributes());
         FabricDefaultAttributeRegistry.register(ModEntities.PUERTA_METALICA, PuertaMetalicaEntity.setAttributes());
+        FabricDefaultAttributeRegistry.register(ModEntities.PUERTA_METALICA_UBLABLA, PuertaMetalicaUblablaEntity.setAttributes());
         FabricDefaultAttributeRegistry.register(ModEntities.FIGURAS_PARED, FigurasParedEntity.setAttributes());
         FabricDefaultAttributeRegistry.register(ModEntities.MANIVELA, ManivelaEntity.setAttributes());
         FabricDefaultAttributeRegistry.register(ModEntities.VALVULA, ValvulaEntity.setAttributes());
@@ -128,6 +129,7 @@ public class GWW implements ModInitializer, ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.CAJA_HERRAMIENTAS, CajaHerramientasEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.PANEL_FUSIBLES, PanelFusiblesEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.PUERTA_METALICA, PuertaMetalicaEntityRenderer::new);
+        EntityRendererRegistry.register(ModEntities.PUERTA_METALICA_UBLABLA, PuertaMetalicaUblablaEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.FIGURAS_PARED, FigurasParedEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.MANIVELA, ManivelaEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.VALVULA, ValvulaEntityRenderer::new);

@@ -77,6 +77,10 @@ public class ModEntities {
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "puerta_metalica"),
             EntityType.Builder.of(PuertaMetalicaEntity::new, MobCategory.MISC)
                     .sized(2f, 1.5f).build());
+    public static final EntityType<PuertaMetalicaUblablaEntity> PUERTA_METALICA_UBLABLA = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "puerta_metalica_ublabla"),
+            EntityType.Builder.of(PuertaMetalicaUblablaEntity::new, MobCategory.MISC)
+                    .sized(2f, 1.5f).build());
 
     public static final EntityType<FigurasParedEntity> FIGURAS_PARED = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "figuras_pared"),

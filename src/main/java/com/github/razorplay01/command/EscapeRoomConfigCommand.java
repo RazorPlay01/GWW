@@ -226,6 +226,28 @@ public class EscapeRoomConfigCommand {
                         // ========== UBLABLA ==========
                         .then(Commands.literal("ublabla")
                                 .then(Commands.argument("entity", EntityArgument.entity())
+                                        .then(Commands.literal("link")
+                                                .then(Commands.literal("door")
+                                                        .then(Commands.argument("door", EntityArgument.entity())
+                                                                .executes(EscapeRoomConfigCommand::linkDoorToUblabla)
+                                                        )
+                                                )
+                                        )
+                                        .then(Commands.literal("unlink")
+                                                .then(Commands.literal("door")
+                                                        .then(Commands.argument("door", EntityArgument.entity())
+                                                                .executes(EscapeRoomConfigCommand::unlinkDoorFromUblabla)
+                                                        )
+                                                )
+                                                .then(Commands.literal("doors")
+                                                        .executes(EscapeRoomConfigCommand::unlinkAllDoorsFromUblabla)
+                                                )
+                                        )
+                                        .then(Commands.literal("list")
+                                                .then(Commands.literal("doors")
+                                                        .executes(EscapeRoomConfigCommand::listUblablaDoors)
+                                                )
+                                        )
                                         .then(Commands.literal("setinvestigation")
                                                 .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                                         .executes(EscapeRoomConfigCommand::setInvestigationPos)
@@ -812,6 +834,50 @@ public class EscapeRoomConfigCommand {
     }
 
     // ==================== UBLABLA ====================
+    private static int linkDoorToUblabla(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        UblablaEntity ublabla = getEntityOfType(context, "entity", UblablaEntity.class, NOT_UBLABLA);
+        if (ublabla == null) return 0;
+        PuertaMetalicaUblablaEntity door = getEntityOfType(context, "door", PuertaMetalicaUblablaEntity.class, "§cLa entidad no es una Puerta Metálica.");
+        if (door == null) return 0;
+        ublabla.linkDoor(door);
+        sendSuccess(context, "§a✓ Puerta vinculada al Ublabla.");
+        return 1;
+    }
+
+    private static int unlinkDoorFromUblabla(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        UblablaEntity ublabla = getEntityOfType(context, "entity", UblablaEntity.class, NOT_UBLABLA);
+        if (ublabla == null) return 0;
+        PuertaMetalicaUblablaEntity door = getEntityOfType(context, "door", PuertaMetalicaUblablaEntity.class, "§cLa entidad no es una Puerta Metálica.");
+        if (door == null) return 0;
+        ublabla.unlinkDoor(door);
+        sendSuccess(context, "§a✓ Enlace con puerta eliminado.");
+        return 1;
+    }
+
+    private static int unlinkAllDoorsFromUblabla(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        UblablaEntity ublabla = getEntityOfType(context, "entity", UblablaEntity.class, NOT_UBLABLA);
+        if (ublabla == null) return 0;
+        ublabla.unlinkAllDoors();
+        sendSuccess(context, "§aTodas las puertas han sido desvinculadas.");
+        return 1;
+    }
+
+    private static int listUblablaDoors(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        UblablaEntity ublabla = getEntityOfType(context, "entity", UblablaEntity.class, NOT_UBLABLA);
+        if (ublabla == null) return 0;
+        List<Vec3> doors = ublabla.getLinkedDoors();
+        if (doors.isEmpty()) {
+            sendInfo(context, "§eEste Ublabla no tiene puertas vinculadas.");
+        } else {
+            sendInfo(context, "§6=== Puertas vinculadas al Ublabla ===");
+            for (int i = 0; i < doors.size(); i++) {
+                Vec3 rel = doors.get(i);
+                sendInfo(context, String.format("§e[%d] §f(%.2f, %.2f, %.2f)", i, rel.x, rel.y, rel.z));
+            }
+        }
+        return 1;
+    }
+
     private static int setInvestigationPos(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         UblablaEntity ublabla = getEntityOfType(context, "entity", UblablaEntity.class, NOT_UBLABLA);
         if (ublabla == null) return 0;

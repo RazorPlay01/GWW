@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.DoubleTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -34,9 +36,7 @@ import software.bernie.geckolib.animation.AnimationController;
 import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class UblablaEntity extends PathfinderMob implements GeoEntity, EscapeRoomPersistable {
 
@@ -59,12 +59,21 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity, EscapeRoo
     private static final double CATCH_DISTANCE_SQ = 5.29;
     private static final double LOSE_TARGET_DISTANCE_SQ = 2500.0;
 
-    @Getter @Setter private Vec3 patrolCenter;
-    @Getter private double patrolRadius = 25.0;
-    @Getter @Setter private BlockPos spawnPos;
-    @Getter @Setter private BlockPos investigationTarget;
-    @Getter private BlockPos jailMin;
-    @Getter private BlockPos jailMax;
+    @Getter
+    @Setter
+    private Vec3 patrolCenter;
+    @Getter
+    private double patrolRadius = 25.0;
+    @Getter
+    @Setter
+    private BlockPos spawnPos;
+    @Getter
+    @Setter
+    private BlockPos investigationTarget;
+    @Getter
+    private BlockPos jailMin;
+    @Getter
+    private BlockPos jailMax;
 
     private int noiseCheckCooldown = 0;
     private int alertTimer = 0;
@@ -72,7 +81,7 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity, EscapeRoo
     private int chaseTimer = 0;
     private int chaseMessageCooldown = 0;
     private int checkWaitTimer = 0;
-
+    private final List<Vec3> linkedDoors = new ArrayList<>();
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("animation.idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("animation.walk");
@@ -100,6 +109,52 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity, EscapeRoo
                 .add(Attributes.MAX_HEALTH, 80.0)
                 .add(Attributes.MOVEMENT_SPEED, 0.32)
                 .add(Attributes.FOLLOW_RANGE, 90.0);
+    }
+
+    public void linkDoor(PuertaMetalicaUblablaEntity door) {
+        Vec3 rel = door.position().subtract(Vec3.atCenterOf(spawnPos));
+        linkedDoors.add(rel);
+    }
+
+    public void unlinkDoor(PuertaMetalicaUblablaEntity door) {
+        Vec3 rel = door.position().subtract(Vec3.atCenterOf(spawnPos));
+        linkedDoors.removeIf(v -> v.distanceToSqr(rel) < 0.01);
+    }
+
+    public void unlinkAllDoors() {
+        linkedDoors.clear();
+    }
+
+    public List<Vec3> getLinkedDoors() {
+        return Collections.unmodifiableList(linkedDoors);
+    }
+
+    private List<PuertaMetalicaUblablaEntity> getLinkedDoorEntities() {
+        List<PuertaMetalicaUblablaEntity> doors = new ArrayList<>();
+        Vec3 spawnCenter = Vec3.atCenterOf(spawnPos);
+        for (Vec3 rel : linkedDoors) {
+            Vec3 absPos = spawnCenter.add(rel);
+            AABB box = new AABB(absPos.x - 3, absPos.y - 3, absPos.z - 3,
+                    absPos.x + 3, absPos.y + 3, absPos.z + 3);
+            List<PuertaMetalicaUblablaEntity> found = level().getEntitiesOfClass(
+                    PuertaMetalicaUblablaEntity.class, box, e -> true);
+            if (!found.isEmpty()) {
+                doors.add(found.get(0));
+            }
+        }
+        return doors;
+    }
+
+    private void openAllLinkedDoors() {
+        for (PuertaMetalicaUblablaEntity door : getLinkedDoorEntities()) {
+            door.setOpen(true);
+        }
+    }
+
+    private void closeAllLinkedDoors() {
+        for (PuertaMetalicaUblablaEntity door : getLinkedDoorEntities()) {
+            door.setOpen(false);
+        }
     }
 
     public void setJailArea(BlockPos min, BlockPos max) {
@@ -217,6 +272,7 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity, EscapeRoo
             setState(STATE_INVESTIGATING);
             investigationTimer = 0;
             navigateTo(investigationTarget);
+            openAllLinkedDoors();
         } else {
             broadcastMessage("No sé a dónde ir...");
             resetToPatrol();
@@ -384,6 +440,7 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity, EscapeRoo
 
     public void resetToPatrol() {
         getNavigation().stop();
+        closeAllLinkedDoors();
         if (spawnPos != null) {
             this.teleportTo(spawnPos.getX() + 0.5, spawnPos.getY() + 0.1, spawnPos.getZ() + 0.5);
         }
@@ -557,6 +614,15 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity, EscapeRoo
             tag.putDouble("PatrolZ", patrolCenter.z);
             tag.putDouble("PatrolRadius", patrolRadius);
         }
+        ListTag doorsList = new ListTag();
+        for (Vec3 v : linkedDoors) {
+            ListTag posTag = new ListTag();
+            posTag.add(DoubleTag.valueOf(v.x));
+            posTag.add(DoubleTag.valueOf(v.y));
+            posTag.add(DoubleTag.valueOf(v.z));
+            doorsList.add(posTag);
+        }
+        tag.put("LinkedDoors", doorsList);
     }
 
     @Override
@@ -578,6 +644,15 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity, EscapeRoo
                     tag.getDouble("PatrolZ")
             );
             patrolRadius = tag.getDouble("PatrolRadius");
+        }
+        linkedDoors.clear();
+        ListTag doorsList = tag.getList("LinkedDoors", 9); // 9 = ListTag of doubles
+        for (int i = 0; i < doorsList.size(); i++) {
+            ListTag posTag = doorsList.getList(i);
+            double x = posTag.getDouble(0);
+            double y = posTag.getDouble(1);
+            double z = posTag.getDouble(2);
+            linkedDoors.add(new Vec3(x, y, z));
         }
     }
 
