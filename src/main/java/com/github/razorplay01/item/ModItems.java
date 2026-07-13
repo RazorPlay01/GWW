@@ -23,6 +23,8 @@ public class ModItems {
     public static final Item GANZUA = register("ganzua", new Item(new Item.Properties()));
     public static final Item HOJA_PISTA = register("hoja_pista", new PistaItem(new Item.Properties()));
     public static final Item LLAVE_ATICO = register("llave_atico", new Item(new Item.Properties()));
+    public static final Item CABLE_LINEAL = register("cable_lineal", new Item(new Item.Properties()));
+    public static final Item CABLE_CURVO = register("cable_curvo", new Item(new Item.Properties()));
 
     public static final ResourceKey<CreativeModeTab> CUSTOM_ITEM_GROUP_KEY = ResourceKey.create(BuiltInRegistries.CREATIVE_MODE_TAB.key(), ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "item_group"));
     public static final CreativeModeTab CUSTOM_ITEM_GROUP = FabricItemGroup.builder()

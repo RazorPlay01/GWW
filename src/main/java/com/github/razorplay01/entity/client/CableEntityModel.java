@@ -31,7 +31,7 @@ public class CableEntityModel extends GeoModel<CableEntity> {
         if (animatable.getCableType() == 0) {
             return ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "animations/cable_1.animation.json");
         } else {
-            return ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "textures/entity/cable_2.png");
+            return ResourceLocation.fromNamespaceAndPath(GWW.MOD_ID, "animations/cable_2.animation.png");
         }
     }
 

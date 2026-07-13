@@ -1,16 +1,20 @@
 package com.github.razorplay01.entity.custom;
 
+import com.github.razorplay01.item.ModItems;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import software.bernie.geckolib.animation.AnimatableManager;
 
@@ -39,6 +43,25 @@ public class CableEntity extends BaseEntity {
             int nextState = (this.getState() + 1) % 4;
             this.setState(nextState);
             player.sendSystemMessage(Component.literal("State: " + this.getState()));
+        } else {
+            if (getCableType() == 0 && player.getInventory().contains(new ItemStack(ModItems.CABLE_LINEAL))) {
+                consumeRequiredItem(player, ModItems.CABLE_LINEAL);
+                setActive(true);
+            }
+            if (getCableType() == 1 && player.getInventory().contains(new ItemStack(ModItems.CABLE_CURVO))) {
+                consumeRequiredItem(player, ModItems.CABLE_CURVO);
+                setActive(true);
+            }
+        }
+    }
+
+    private void consumeRequiredItem(Player player, Item item) {
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.is(item)) {
+                stack.shrink(1);
+                return;
+            }
         }
     }
 
