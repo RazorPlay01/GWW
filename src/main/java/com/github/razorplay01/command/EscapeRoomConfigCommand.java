@@ -111,11 +111,28 @@ public class EscapeRoomConfigCommand {
                                         .then(Commands.literal("unlink")
                                                 .executes(EscapeRoomConfigCommand::unlinkAllFromInterruptor)
                                         )
+                                        .then(Commands.literal("link_ublabla")
+                                                .then(Commands.argument("ublabla", EntityArgument.entity())
+                                                        .executes(EscapeRoomConfigCommand::linkUblablaToInterruptor)
+                                                )
+                                        )
+                                        .then(Commands.literal("unlink_ublabla")
+                                                .executes(EscapeRoomConfigCommand::unlinkUblablaFromInterruptor)
+                                        )
+                                        .then(Commands.literal("link_panel")
+                                                .then(Commands.argument("panel", EntityArgument.entity())
+                                                        .executes(EscapeRoomConfigCommand::linkPanelToInterruptor)
+                                                )
+                                        )
+                                        .then(Commands.literal("unlink_panel")
+                                                .executes(EscapeRoomConfigCommand::unlinkPanelFromInterruptor)
+                                        )
                                         .then(Commands.literal("list")
                                                 .executes(EscapeRoomConfigCommand::listInterruptorLinks)
                                         )
                                 )
                         )
+
                         // ========== REJA ==========
                         .then(Commands.literal("reja")
                                 .then(Commands.argument("reja", EntityArgument.entity())
@@ -432,6 +449,78 @@ public class EscapeRoomConfigCommand {
 
     // ==================== INTERRUPTOR ====================
 
+    private static int linkUblablaToInterruptor(CommandContext<CommandSourceStack> context) {
+        try {
+            InterruptorIndustrialEntity interruptor = getEntityOfType(context, "interruptor", InterruptorIndustrialEntity.class, NOT_INTERRUPTOR);
+            if (interruptor == null) return 0;
+            UblablaEntity ublabla = getEntityOfType(context, "ublabla", UblablaEntity.class, NOT_UBLABLA);
+            if (ublabla == null) return 0;
+            interruptor.linkUblabla(ublabla);
+            sendSuccess(context, "§a✓ Ublabla vinculado correctamente.");
+            return 1;
+        } catch (Exception e) {
+            sendFailure(context, "§cError: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    private static int unlinkUblablaFromInterruptor(CommandContext<CommandSourceStack> context) {
+        try {
+            InterruptorIndustrialEntity interruptor = getEntityOfType(context, "interruptor", InterruptorIndustrialEntity.class, NOT_INTERRUPTOR);
+            if (interruptor == null) return 0;
+            interruptor.unlinkUblabla();
+            sendSuccess(context, "§aEnlace con Ublabla eliminado.");
+            return 1;
+        } catch (Exception e) {
+            sendFailure(context, "§cError: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    private static int linkPanelToInterruptor(CommandContext<CommandSourceStack> context) {
+        try {
+            InterruptorIndustrialEntity interruptor = getEntityOfType(context, "interruptor", InterruptorIndustrialEntity.class, NOT_INTERRUPTOR);
+            if (interruptor == null) return 0;
+            PanelCodigoEntity panel = getEntityOfType(context, "panel", PanelCodigoEntity.class, NOT_PANEL_CODIGO);
+            if (panel == null) return 0;
+            interruptor.linkPanel(panel);
+            sendSuccess(context, "§a✓ Panel de Código vinculado correctamente.");
+            return 1;
+        } catch (Exception e) {
+            sendFailure(context, "§cError: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    private static int unlinkPanelFromInterruptor(CommandContext<CommandSourceStack> context) {
+        try {
+            InterruptorIndustrialEntity interruptor = getEntityOfType(context, "interruptor", InterruptorIndustrialEntity.class, NOT_INTERRUPTOR);
+            if (interruptor == null) return 0;
+            interruptor.unlinkPanel();
+            sendSuccess(context, "§aEnlace con Panel de Código eliminado.");
+            return 1;
+        } catch (Exception e) {
+            sendFailure(context, "§cError: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    // Modificar listInterruptorLinks para mostrar también los nuevos enlaces:
+    private static int listInterruptorLinks(CommandContext<CommandSourceStack> context) {
+        try {
+            InterruptorIndustrialEntity interruptor = getEntityOfType(context, "interruptor", InterruptorIndustrialEntity.class, NOT_INTERRUPTOR);
+            if (interruptor == null) return 0;
+            sendInfo(context, "§6=== Vinculaciones del Interruptor ===");
+            sendInfo(context, "§eCables: §f" + interruptor.getLinkedCables().size());
+            sendInfo(context, "§eUblabla: §f" + (interruptor.getLinkedUblablas().isEmpty() ? "§cNo vinculado" : "§aVinculado"));
+            sendInfo(context, "§ePanel de Código: §f" + (interruptor.getLinkedPanels().isEmpty() ? "§cNo vinculado" : "§aVinculado"));
+            return 1;
+        } catch (Exception e) {
+            sendFailure(context, "§cError: " + e.getMessage());
+            return 0;
+        }
+    }
+
     private static int linkCableToInterruptor(CommandContext<CommandSourceStack> context) {
         try {
             InterruptorIndustrialEntity interruptor = getEntityOfType(context, "interruptor", InterruptorIndustrialEntity.class, NOT_INTERRUPTOR);
@@ -453,26 +542,6 @@ public class EscapeRoomConfigCommand {
             if (interruptor == null) return 0;
             interruptor.unlinkAllCables();
             sendSuccess(context, SUCCESS_UNLINK_ALL);
-            return 1;
-        } catch (Exception e) {
-            sendFailure(context, "§cError: " + e.getMessage());
-            return 0;
-        }
-    }
-
-    private static int listInterruptorLinks(CommandContext<CommandSourceStack> context) {
-        try {
-            InterruptorIndustrialEntity interruptor = getEntityOfType(context, "interruptor", InterruptorIndustrialEntity.class, NOT_INTERRUPTOR);
-            if (interruptor == null) return 0;
-            int count = interruptor.getLinkedCables().size();
-            sendInfo(context, "§6=== Vinculaciones del Interruptor ===");
-            sendInfo(context, "§eCables vinculados: §f" + count);
-            if (count > 0) {
-                for (int i = 0; i < count; i++) {
-                    Vec3 rel = interruptor.getLinkedCables().get(i);
-                    sendInfo(context, String.format("§e%d → §f%.2f, %.2f, %.2f", i + 1, rel.x, rel.y, rel.z));
-                }
-            }
             return 1;
         } catch (Exception e) {
             sendFailure(context, "§cError: " + e.getMessage());

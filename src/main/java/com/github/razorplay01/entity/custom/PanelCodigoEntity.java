@@ -34,6 +34,7 @@ import static com.github.razorplay01.entity.custom.util.Util.*;
 public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEntity<PanelCodigoEntity> {
     private EntityHitboxData<PanelCodigoEntity> hitboxData;
     private final List<Vec3> linkedDoors = new ArrayList<>();
+
     private static final EntityDataAccessor<String> CURRENT_INPUT =
             SynchedEntityData.defineId(PanelCodigoEntity.class, EntityDataSerializers.STRING);
 
@@ -43,7 +44,14 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
     private static final EntityDataAccessor<Boolean> PUZZLE_LOCKED =
             SynchedEntityData.defineId(PanelCodigoEntity.class, EntityDataSerializers.BOOLEAN);
 
-    private static final List<String> CORRECT_SEQUENCE = Arrays.asList(
+    private static final EntityDataAccessor<String> DATA_CORRECT_SEQUENCE =
+            SynchedEntityData.defineId(PanelCodigoEntity.class, EntityDataSerializers.STRING);
+
+    // Nuevo: estado de encendido/apagado
+    private static final EntityDataAccessor<Boolean> POWERED =
+            SynchedEntityData.defineId(PanelCodigoEntity.class, EntityDataSerializers.BOOLEAN);
+
+    private static final List<String> DEFAULT_SEQUENCE = Arrays.asList(
             "triangulo", "circulo", "hexagono", "cuadrado"
     );
 
@@ -66,6 +74,40 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
         builder.define(CURRENT_INPUT, "");
         builder.define(PUZZLE_SOLVED, false);
         builder.define(PUZZLE_LOCKED, false);
+        builder.define(DATA_CORRECT_SEQUENCE, String.join(",", DEFAULT_SEQUENCE));
+        builder.define(POWERED, false);
+    }
+
+    // ---------- Power state ----------
+    public boolean isPowered() {
+        return this.entityData.get(POWERED);
+    }
+
+    public void setPowered(boolean powered) {
+        boolean old = isPowered();
+        this.entityData.set(POWERED, powered);
+        if (powered && isSolved() && !this.level().isClientSide) {
+            // Al encender y ya resuelto, actualizar puertas
+            updateAllLinkedDoors();
+        }
+        // El renderizador leerá directamente powered y solved.
+    }
+
+    // ---------- Puzzle state ----------
+    public List<String> getCorrectSequence() {
+        String data = this.entityData.get(DATA_CORRECT_SEQUENCE);
+        if (data == null || data.isEmpty()) {
+            return new ArrayList<>(DEFAULT_SEQUENCE);
+        }
+        return new ArrayList<>(Arrays.asList(data.split(",")));
+    }
+
+    public void setCorrectSequence(List<String> sequence) {
+        if (sequence == null || sequence.isEmpty()) {
+            this.entityData.set(DATA_CORRECT_SEQUENCE, String.join(",", DEFAULT_SEQUENCE));
+        } else {
+            this.entityData.set(DATA_CORRECT_SEQUENCE, String.join(",", sequence));
+        }
     }
 
     public List<String> getCurrentInput() {
@@ -86,6 +128,9 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
 
     public void setSolved(boolean solved) {
         this.entityData.set(PUZZLE_SOLVED, solved);
+        if (solved && isPowered() && !this.level().isClientSide) {
+            updateAllLinkedDoors();
+        }
     }
 
     public boolean isLocked() {
@@ -96,6 +141,7 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
         this.entityData.set(PUZZLE_LOCKED, locked);
     }
 
+    // ---------- NBT ----------
     @Override
     public void addAdditionalSaveData(@NotNull CompoundTag tag) {
         super.addAdditionalSaveData(tag);
@@ -104,6 +150,8 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
         tag.putBoolean("PuzzleLocked", isLocked());
         tag.putInt("LockTimer", this.lockTimer);
         saveLinkedList(tag, "LinkedDoors", linkedDoors);
+        tag.putString("CorrectSequence", this.entityData.get(DATA_CORRECT_SEQUENCE));
+        tag.putBoolean("Powered", isPowered());
     }
 
     @Override
@@ -115,8 +163,16 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
         this.lockTimer = tag.getInt("LockTimer");
         linkedDoors.clear();
         linkedDoors.addAll(loadLinkedList(tag, "LinkedDoors"));
+        String seq = tag.getString("CorrectSequence");
+        if (!seq.isEmpty()) {
+            this.entityData.set(DATA_CORRECT_SEQUENCE, seq);
+        }
+        boolean powered = tag.getBoolean("Powered");
+        this.entityData.set(POWERED, powered);
+        // Si está resuelto y encendido, actualizar puertas (se hará al spawn)
     }
 
+    // ---------- Tick ----------
     @Override
     public void tick() {
         super.tick();
@@ -131,9 +187,16 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
         }
     }
 
+    // ---------- Interacción ----------
     @Override
     public InteractionResult interactAt(Player player, Vec3 hitVec, InteractionHand hand) {
         if (hand != InteractionHand.MAIN_HAND || this.level().isClientSide) {
+            return InteractionResult.PASS;
+        }
+        if (!isPowered()) {
+            if (!this.level().isClientSide) {
+                player.sendSystemMessage(Component.literal("§cEl panel está apagado."));
+            }
             return InteractionResult.PASS;
         }
 
@@ -215,6 +278,7 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
             return;
         }
 
+        // Si ya resuelto, no hacer nada
         if (isSolved()) {
             player.sendSystemMessage(Component.literal("§a✔ El puzzle ya está resuelto."));
             return;
@@ -226,24 +290,24 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
             return;
         }
 
-        if (!CORRECT_SEQUENCE.contains(partName)) {
-            return; // No es una parte válida del puzzle
+        List<String> correctSeq = getCorrectSequence();
+        if (!correctSeq.contains(partName)) {
+            return;
         }
 
         List<String> input = getCurrentInput();
         int currentStep = input.size();
 
-        if (CORRECT_SEQUENCE.get(currentStep).equals(partName)) {
+        if (correctSeq.get(currentStep).equals(partName)) {
             input.add(partName);
             setCurrentInput(input);
 
-            int remaining = CORRECT_SEQUENCE.size() - input.size();
             player.sendSystemMessage(Component.literal(
-                    "§a✔ " + formatName(partName) + " correcto! §7(" + input.size() + "/" + CORRECT_SEQUENCE.size() + ")"
+                    "§a✔ " + formatName(partName) + " correcto! §7(" + input.size() + "/" + correctSeq.size() + ")"
             ));
             playSound(player, true);
 
-            if (input.size() == CORRECT_SEQUENCE.size()) {
+            if (input.size() == correctSeq.size()) {
                 onPuzzleSolved(player);
             }
 
@@ -255,18 +319,10 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
     private void onPuzzleSolved(Player player) {
         setSolved(true);
         setCurrentInput(new ArrayList<>());
-
-        player.sendSystemMessage(Component.literal("§a§l★ ¡PUZZLE RESUELTO! ★"));
-
-        this.level().playSound(null, this.blockPosition(),
-                SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.BLOCKS, 1.0F, 1.0F);
-
         updateAllLinkedDoors();
+        // El estado visual se actualiza automáticamente ya que isSolved() cambió.
     }
 
-    /**
-     * Se llama cuando el jugador presiona un botón incorrecto
-     */
     private void onPuzzleFailed(Player player, String wrongPart) {
         player.sendSystemMessage(Component.literal(
                 "§c✖ ¡Incorrecto! " + formatName(wrongPart) + " no es el siguiente. Reiniciando..."
@@ -278,12 +334,9 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
         setCurrentInput(new ArrayList<>());
     }
 
-    /**
-     * Botón de estado: muestra información del puzzle
-     */
     private void handleStatusButton(Player player) {
         if (isSolved()) {
-            player.sendSystemMessage(Component.literal("§a§l★ Puzzle completado ★"));
+            player.sendSystemMessage(Component.literal("§a★ Puzzle completado ★"));
             toggleLinkedDoors();
             player.sendSystemMessage(Component.literal("§e↔ Puertas toggled"));
         } else if (isLocked()) {
@@ -293,8 +346,9 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
             if (input.isEmpty()) {
                 player.sendSystemMessage(Component.literal("§e▶ Puzzle sin iniciar. Presiona los símbolos en el orden correcto."));
             } else {
+                List<String> correctSeq = getCorrectSequence();
                 player.sendSystemMessage(Component.literal(
-                        "§e▶ Progreso: " + input.size() + "/" + CORRECT_SEQUENCE.size()
+                        "§e▶ Progreso: " + input.size() + "/" + correctSeq.size()
                 ));
             }
         }
@@ -314,37 +368,15 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
         return partName.substring(0, 1).toUpperCase() + partName.substring(1);
     }
 
-    /**
-     * Método para resetear el puzzle externamente (por comando, redstone, etc.)
-     */
     public void resetPuzzle() {
         setSolved(false);
         setLocked(false);
         setCurrentInput(new ArrayList<>());
         lockTimer = 0;
+        // No se actualizan puertas porque no está resuelto
     }
 
-    @Override
-    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-    }
-
-    @Override
-    public void handleNormalInteract(Player player) {
-    }
-
-    @Override
-    public EntityHitboxData<PanelCodigoEntity> getEntityHitboxData() {
-        if (hitboxData == null) {
-            hitboxData = EntityHitboxDataFactory.create(this);
-        }
-        return hitboxData;
-    }
-
-    @Override
-    public boolean partHurt(MultiPart<PanelCodigoEntity> multiPart, @NotNull DamageSource damageSource, float v) {
-        return false;
-    }
-
+    // ---------- Enlaces con puertas ----------
     public void linkDoor(PuertaMetalicaEntity door, Vec3 roomCenter) {
         if (door == null || roomCenter == null) return;
 
@@ -352,7 +384,7 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
 
         if (!linkedDoors.contains(relativePos)) {
             linkedDoors.add(relativePos);
-            updateAllLinkedDoors(); // aplicar estado actual
+            updateAllLinkedDoors();
         }
     }
 
@@ -369,10 +401,10 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
     }
 
     public void updateAllLinkedDoors() {
-        if (linkedDoors.isEmpty()) return;
+        if (linkedDoors.isEmpty() || !isSolved()) return;
 
         Vec3 panelPos = this.position();
-        boolean shouldOpen = isSolved();
+        boolean shouldOpen = true; // siempre abrir si resuelto
 
         for (Vec3 relPos : linkedDoors) {
             Vec3 absolutePos = panelPos.add(relPos);
@@ -384,9 +416,6 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
         }
     }
 
-    /**
-     * Toggle (abrir/cerrar) todas las puertas vinculadas
-     */
     private void toggleLinkedDoors() {
         if (linkedDoors.isEmpty()) return;
 
@@ -415,5 +444,27 @@ public class PanelCodigoEntity extends BaseEntity implements GeckoLibMultiPartEn
                             d -> d.position().distanceToSqr(absolutePos) < 3.0)
                     .forEach(door -> door.setOpen(newState));
         }
+    }
+
+    // ---------- Métodos requeridos por interfaces ----------
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+    }
+
+    @Override
+    public void handleNormalInteract(Player player) {
+    }
+
+    @Override
+    public EntityHitboxData<PanelCodigoEntity> getEntityHitboxData() {
+        if (hitboxData == null) {
+            hitboxData = EntityHitboxDataFactory.create(this);
+        }
+        return hitboxData;
+    }
+
+    @Override
+    public boolean partHurt(MultiPart<PanelCodigoEntity> multiPart, @NotNull DamageSource damageSource, float v) {
+        return false;
     }
 }

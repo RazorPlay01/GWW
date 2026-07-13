@@ -395,36 +395,72 @@ public class EscapeRoomManager {
                 i -> true
         );
 
-        List<CableEntity> allCables = level.getEntitiesOfClass(
-                CableEntity.class,
-                new AABB(centerPos).inflate(150),
-                c -> true
-        );
+        // Obtener todos los cables, ublablas y paneles de código del área
+        List<CableEntity> allCables = level.getEntitiesOfClass(CableEntity.class,
+                new AABB(centerPos).inflate(150), c -> true);
+        List<UblablaEntity> allUblablas = level.getEntitiesOfClass(UblablaEntity.class,
+                new AABB(centerPos).inflate(150), u -> true);
+        List<PanelCodigoEntity> allPanels = level.getEntitiesOfClass(PanelCodigoEntity.class,
+                new AABB(centerPos).inflate(150), p -> true);
 
         for (InterruptorIndustrialEntity interruptor : interruptors) {
-            List<Vec3> savedRelPositions = new ArrayList<>(interruptor.getLinkedCables());
-
+            // Restaurar cables
+            List<Vec3> savedCables = new ArrayList<>(interruptor.getLinkedCables());
             interruptor.unlinkAllCables();
+            for (Vec3 relPos : savedCables) {
+                Vec3 expectedPos = interruptor.position().add(relPos);
+                CableEntity closest = findClosest(expectedPos, allCables, 4.0);
+                if (closest != null) interruptor.linkCable(closest);
+            }
 
-            for (Vec3 relPos : savedRelPositions) {
-                Vec3 expectedCablePos = interruptor.position().add(relPos);
-
-                CableEntity closest = null;
-                double closestDist = 4.0;
-
-                for (CableEntity cable : allCables) {
-                    double dist = cable.position().distanceToSqr(expectedCablePos);
-                    if (dist < closestDist) {
-                        closestDist = dist;
-                        closest = cable;
-                    }
-                }
-
+            // Restaurar Ublabla (solo uno)
+            if (!interruptor.getLinkedUblablas().isEmpty()) {
+                Vec3 relPos = interruptor.getLinkedUblablas().get(0);
+                Vec3 expectedPos = interruptor.position().add(relPos);
+                UblablaEntity closest = findClosest(expectedPos, allUblablas, 4.0);
                 if (closest != null) {
-                    interruptor.linkCable(closest);
+                    interruptor.getLinkedUblablas().clear();
+                    interruptor.getLinkedUblablas().add(closest.position().subtract(interruptor.position()));
+                } else {
+                    interruptor.getLinkedUblablas().clear();
+                }
+            }
+
+            // Restaurar Panel (solo uno)
+            if (!interruptor.getLinkedPanels().isEmpty()) {
+                Vec3 relPos = interruptor.getLinkedPanels().get(0);
+                Vec3 expectedPos = interruptor.position().add(relPos);
+                PanelCodigoEntity closest = findClosest(expectedPos, allPanels, 4.0);
+                if (closest != null) {
+                    interruptor.getLinkedPanels().clear();
+                    interruptor.getLinkedPanels().add(closest.position().subtract(interruptor.position()));
+                } else {
+                    interruptor.getLinkedPanels().clear();
+                }
+            }
+
+            // Aplicar estado actual al panel si está encendido
+            if (interruptor.isOn()) {
+                PanelCodigoEntity panel = interruptor.getLinkedPanel();
+                if (panel != null) {
+                    panel.setPowered(true);
                 }
             }
         }
+    }
+
+    // Helper genérico para encontrar la entidad más cercana
+    private static <T extends Entity> T findClosest(Vec3 pos, List<T> entities, double maxDistSq) {
+        T closest = null;
+        double closestDist = maxDistSq;
+        for (T e : entities) {
+            double dist = e.position().distanceToSqr(pos);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closest = e;
+            }
+        }
+        return closest;
     }
 
     private static void reLinkRejas(ServerLevel level, BlockPos centerPos) {

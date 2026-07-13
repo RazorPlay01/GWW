@@ -34,6 +34,10 @@ public class ValvulaEntity extends BaseEntity {
             SynchedEntityData.defineId(ValvulaEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> DATA_HAS_MANIVELA =
             SynchedEntityData.defineId(ValvulaEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> DATA_CORRECT_STATE =
+            SynchedEntityData.defineId(ValvulaEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_MAX_STATES =
+            SynchedEntityData.defineId(ValvulaEntity.class, EntityDataSerializers.INT);
 
     private static final RawAnimation IDLE_ANIM = RawAnimation.begin().thenLoop("animation.idle");
     private static final RawAnimation OPEN_ANIM = RawAnimation.begin().thenPlay("animation.open");
@@ -151,6 +155,8 @@ public class ValvulaEntity extends BaseEntity {
         builder.define(DATA_TYPE, ValvulaType.NARANJA.getId());
         builder.define(DATA_STATE, 0);
         builder.define(DATA_HAS_MANIVELA, false);
+        builder.define(DATA_CORRECT_STATE, 3);
+        builder.define(DATA_MAX_STATES, 4);
     }
 
     @Override
@@ -164,6 +170,8 @@ public class ValvulaEntity extends BaseEntity {
             emitterList.add(emitter.save());
         }
         tag.put("ParticleEmitters", emitterList);
+        tag.putInt("CorrectState", getCorrectState());
+        tag.putInt("MaxStates", getMaxStates());
     }
 
     @Override
@@ -179,6 +187,24 @@ public class ValvulaEntity extends BaseEntity {
                 particleEmitters.add(ParticleEmitter.load(emitterList.getCompound(i)));
             }
         }
+        setCorrectState(tag.getInt("CorrectState"));
+        setMaxStates(tag.getInt("MaxStates"));
+    }
+
+    public int getCorrectState() {
+        return this.entityData.get(DATA_CORRECT_STATE);
+    }
+
+    public void setCorrectState(int correctState) {
+        this.entityData.set(DATA_CORRECT_STATE, Math.max(0, correctState));
+    }
+
+    public int getMaxStates() {
+        return this.entityData.get(DATA_MAX_STATES);
+    }
+
+    public void setMaxStates(int maxStates) {
+        this.entityData.set(DATA_MAX_STATES, Math.max(1, maxStates));
     }
 
     public ValvulaType getValType() {
@@ -194,7 +220,8 @@ public class ValvulaEntity extends BaseEntity {
     }
 
     public void setState(int state) {
-        this.entityData.set(DATA_STATE, Math.max(0, Math.min(3, state)));
+        int max = getMaxStates() - 1;
+        this.entityData.set(DATA_STATE, Math.max(0, Math.min(max, state)));
     }
 
     public boolean hasManivela() {
@@ -206,7 +233,7 @@ public class ValvulaEntity extends BaseEntity {
     }
 
     public boolean areParticlesActive() {
-        return getState() < 3;
+        return getState() < getCorrectState();
     }
 
     public List<ParticleEmitter> getParticleEmitters() {
@@ -424,7 +451,8 @@ public class ValvulaEntity extends BaseEntity {
 
     private void increaseState() {
         int currentState = getState();
-        if (currentState < 3) {
+        int maxStateIndex = getMaxStates() - 1;
+        if (currentState < maxStateIndex) {
             setState(currentState + 1);
             triggerTurnUpAnim(this.level());
         }

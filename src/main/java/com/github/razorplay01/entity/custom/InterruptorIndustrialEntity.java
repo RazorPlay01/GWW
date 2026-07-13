@@ -1,11 +1,13 @@
 package com.github.razorplay01.entity.custom;
 
 import com.github.razorplay01.entity.custom.util.Util;
-import net.minecraft.core.BlockPos;
+import lombok.Getter;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -21,6 +23,7 @@ import software.bernie.geckolib.animation.RawAnimation;
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
 public class InterruptorIndustrialEntity extends BaseEntity {
 
     private static final EntityDataAccessor<Integer> STATE = SynchedEntityData.defineId(
@@ -30,6 +33,8 @@ public class InterruptorIndustrialEntity extends BaseEntity {
     private static final RawAnimation ANIMATION_OFF = RawAnimation.begin().thenPlayAndHold("Off");
 
     private final List<Vec3> linkedCables = new ArrayList<>();
+    private final List<Vec3> linkedUblablas = new ArrayList<>();
+    private final List<Vec3> linkedPanels = new ArrayList<>();
 
     public InterruptorIndustrialEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
         super(entityType, level);
@@ -46,7 +51,51 @@ public class InterruptorIndustrialEntity extends BaseEntity {
     }
 
     public void setState(int state) {
-        this.entityData.set(STATE, state == 1 ? 1 : 0);
+        int newState = (state == 1) ? 1 : 0;
+        int oldState = this.entityData.get(STATE);
+        this.entityData.set(STATE, newState);
+        if (newState != oldState) {
+            onStateChanged(newState == 1);
+        }
+    }
+
+    private void onStateChanged(boolean nowOn) {
+        PanelCodigoEntity panel = getLinkedPanel();
+        if (panel != null) {
+            panel.setPowered(nowOn); // ON → encendido, OFF → apagado
+        }
+
+        applyBlindness(!nowOn);
+    }
+
+
+    private void applyBlindness(boolean apply) {
+        UblablaEntity ublabla = getLinkedUblabla();
+        if (ublabla == null) {
+            return;
+        }
+
+        Vec3 patrolCenter = ublabla.getPatrolCenter();
+        double patrolRadius = ublabla.getPatrolRadius();
+        if (patrolCenter == null) return;
+
+        AABB region = new AABB(
+                patrolCenter.x - patrolRadius,
+                patrolCenter.y - 30,
+                patrolCenter.z - patrolRadius,
+                patrolCenter.x + patrolRadius,
+                patrolCenter.y + 30,
+                patrolCenter.z + patrolRadius
+        );
+
+        List<Player> players = this.level().getEntitiesOfClass(Player.class, region);
+        for (Player player : players) {
+            if (apply) {
+                player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, -1, 0, false, false, true));
+            } else {
+                player.removeEffect(MobEffects.BLINDNESS);
+            }
+        }
     }
 
     public boolean isOn() {
@@ -84,6 +133,52 @@ public class InterruptorIndustrialEntity extends BaseEntity {
         return true;
     }
 
+    public void linkUblabla(UblablaEntity ublabla) {
+        if (ublabla == null) return;
+        linkedUblablas.clear();
+        linkedUblablas.add(ublabla.position().subtract(this.position()));
+        if (!isOn()) {
+            applyBlindness(true);
+        }
+    }
+
+    public void unlinkUblabla() {
+        if (!isOn()) {
+            applyBlindness(false);
+        }
+        linkedUblablas.clear();
+    }
+
+    private UblablaEntity getLinkedUblabla() {
+        if (linkedUblablas.isEmpty()) return null;
+        Vec3 relPos = linkedUblablas.get(0);
+        Vec3 expectedPos = this.position().add(relPos);
+        List<UblablaEntity> found = this.level().getEntitiesOfClass(UblablaEntity.class,
+                AABB.ofSize(expectedPos, 5, 5, 5),
+                u -> u.position().distanceToSqr(expectedPos) < 1.5);
+        return found.isEmpty() ? null : found.get(0);
+    }
+
+    public void linkPanel(PanelCodigoEntity panel) {
+        if (panel == null) return;
+        linkedPanels.clear();
+        linkedPanels.add(panel.position().subtract(this.position()));
+    }
+
+    public void unlinkPanel() {
+        linkedPanels.clear();
+    }
+
+    public PanelCodigoEntity getLinkedPanel() {
+        if (linkedPanels.isEmpty()) return null;
+        Vec3 relPos = linkedPanels.get(0);
+        Vec3 expectedPos = this.position().add(relPos);
+        List<PanelCodigoEntity> found = this.level().getEntitiesOfClass(PanelCodigoEntity.class,
+                AABB.ofSize(expectedPos, 5, 5, 5),
+                p -> p.position().distanceToSqr(expectedPos) < 1.5);
+        return found.isEmpty() ? null : found.get(0);
+    }
+
     @Override
     public void handleNormalInteract(Player player) {
         if (player.level().isClientSide) return;
@@ -104,6 +199,8 @@ public class InterruptorIndustrialEntity extends BaseEntity {
         super.addAdditionalSaveData(tag);
         tag.putInt("State", getState());
         Util.saveLinkedList(tag, "LinkedCables", linkedCables);
+        Util.saveLinkedList(tag, "LinkedUblablas", linkedUblablas);
+        Util.saveLinkedList(tag, "LinkedPanels", linkedPanels);
     }
 
     @Override
@@ -112,6 +209,12 @@ public class InterruptorIndustrialEntity extends BaseEntity {
         setState(tag.getInt("State"));
         linkedCables.clear();
         linkedCables.addAll(Util.loadLinkedList(tag, "LinkedCables"));
+        linkedUblablas.clear();
+        linkedUblablas.addAll(Util.loadLinkedList(tag, "LinkedUblablas"));
+        linkedPanels.clear();
+        linkedPanels.addAll(Util.loadLinkedList(tag, "LinkedPanels"));
+
+        applyBlindness(!isOn());
     }
 
     public static AttributeSupplier.Builder setAttributes() {

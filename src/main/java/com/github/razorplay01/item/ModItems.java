@@ -50,6 +50,8 @@ public class ModItems {
             itemGroup.accept(ModItems.GANZUA);
             itemGroup.accept(ModItems.HOJA_PISTA);
             itemGroup.accept(ModItems.LLAVE_ATICO);
+            itemGroup.accept(ModItems.CABLE_LINEAL);
+            itemGroup.accept(ModItems.CABLE_CURVO);
         });
     }
 }

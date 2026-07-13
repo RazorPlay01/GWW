@@ -3,7 +3,6 @@ package com.github.razorplay01;
 import com.github.razorplay01.cam.starup.AnnotationFinder;
 import com.github.razorplay01.client.ClientNoiseState;
 import com.github.razorplay01.client.render.NoiseHudRenderer;
-import com.github.razorplay01.command.CuadroCommand;
 import com.github.razorplay01.command.EscapeRoomConfigCommand;
 import com.github.razorplay01.command.NoiseCommand;
 import com.github.razorplay01.entity.ModEntities;
@@ -60,7 +59,6 @@ public class GWW implements ModInitializer, ClientModInitializer {
             MinigameCommand.register(dispatcher);
             NoiseCommand.register(dispatcher);
             EscapeRoomCommands.register(dispatcher);
-            CuadroCommand.register(dispatcher);
             EscapeRoomConfigCommand.register(dispatcher);
         });
         ModComponents.register();
