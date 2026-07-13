@@ -40,7 +40,6 @@ public class PuertaMetalicaEntity extends BaseEntity {
         builder.define(DATA_FACING, Direction.NORTH);
     }
 
-    // ==================== ESTADO OPEN ====================
     public boolean isOpen() {
         return this.entityData.get(IS_OPEN);
     }
@@ -49,7 +48,6 @@ public class PuertaMetalicaEntity extends BaseEntity {
         this.entityData.set(IS_OPEN, open);
     }
 
-    // ==================== FACING ====================
     public Direction getFacing() {
         return this.entityData.get(DATA_FACING);
     }
@@ -67,7 +65,6 @@ public class PuertaMetalicaEntity extends BaseEntity {
         setFacing(Direction.fromYRot(yaw));
     }
 
-    // ==================== PERSISTENCIA ====================
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
@@ -109,7 +106,6 @@ public class PuertaMetalicaEntity extends BaseEntity {
         // []
     }
 
-    // ==================== COLISIÓN SELECTIVA ====================
     @Override
     public boolean canBeCollidedWith() {
         return !isOpen();

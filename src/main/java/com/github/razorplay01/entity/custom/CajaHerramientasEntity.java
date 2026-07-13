@@ -35,7 +35,6 @@ public class CajaHerramientasEntity extends BaseEntity {
     private static final RawAnimation ANIMATION_IDLE = RawAnimation.begin().thenLoop("animation.idle");
     private static final RawAnimation ANIMATION_OPEN = RawAnimation.begin().thenPlayAndHold("animation.open");
 
-    // Items que saldrán de la caja (configurable desde NBT)
     private final List<ItemStack> boxContents = new ArrayList<>();
 
     private boolean itemsSpawned = false;
@@ -44,7 +43,6 @@ public class CajaHerramientasEntity extends BaseEntity {
 
     public CajaHerramientasEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
         super(entityType, level);
-        // Sin contenido por defecto; se debe configurar mediante NBT o setter
     }
 
     @Override
@@ -52,8 +50,6 @@ public class CajaHerramientasEntity extends BaseEntity {
         super.defineSynchedData(builder);
         builder.define(IS_OPEN, false);
     }
-
-    // ========== GETTERS / SETTERS ==========
 
     public boolean isOpen() {
         return this.entityData.get(IS_OPEN);
@@ -69,9 +65,6 @@ public class CajaHerramientasEntity extends BaseEntity {
         }
     }
 
-    /**
-     * Establece el contenido de la caja (copia los ItemStack).
-     */
     public void setBoxContents(List<ItemStack> contents) {
         this.boxContents.clear();
         for (ItemStack stack : contents) {
@@ -81,30 +74,20 @@ public class CajaHerramientasEntity extends BaseEntity {
         }
     }
 
-    /**
-     * Añade un item al contenido.
-     */
     public void addBoxContent(ItemStack stack) {
         if (!stack.isEmpty()) {
             this.boxContents.add(stack.copy());
         }
     }
 
-    /**
-     * Devuelve una copia de la lista de contenido.
-     */
     public List<ItemStack> getBoxContents() {
         return new ArrayList<>(boxContents);
     }
-
-    // ========== ATRIBUTOS ==========
 
     public static AttributeSupplier.Builder setAttributes() {
         return PathfinderMob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, Double.POSITIVE_INFINITY);
     }
-
-    // ========== TICK ==========
 
     @Override
     public void tick() {
@@ -121,8 +104,6 @@ public class CajaHerramientasEntity extends BaseEntity {
         }
     }
 
-    // ========== ANIMACIONES ==========
-
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(
@@ -134,8 +115,6 @@ public class CajaHerramientasEntity extends BaseEntity {
                         : state.setAndContinue(ANIMATION_IDLE)
         ));
     }
-
-    // ========== INTERACCIÓN ==========
 
     @Override
     public void handleNormalInteract(Player player) {
@@ -168,8 +147,6 @@ public class CajaHerramientasEntity extends BaseEntity {
         }
     }
 
-    // ========== SPANWEO DE ITEMS ==========
-
     private void spawnBoxContents() {
         if (this.level().isClientSide || boxContents.isEmpty()) {
             return;
@@ -190,7 +167,6 @@ public class CajaHerramientasEntity extends BaseEntity {
                     stack
             );
 
-            // Dispersión circular
             double angle = (Math.PI * 2 * i) / count;
             double horizontalSpeed = 0.1;
             double motionX = Math.cos(angle) * horizontalSpeed;
@@ -208,16 +184,11 @@ public class CajaHerramientasEntity extends BaseEntity {
                 0.8F, 0.6F);
     }
 
-    // ========== RESET ==========
-
     public void reset() {
         setOpen(false);
         itemsSpawned = false;
         openAnimationTicks = 0;
-        // No se restaura contenido por defecto
     }
-
-    // ========== NBT ==========
 
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {

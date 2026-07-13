@@ -21,7 +21,6 @@ import software.bernie.geckolib.animation.*;
 
 public class PuertaJaulaEntity extends BaseEntity {
 
-    // ==================== ENTITY DATA ====================
     private static final EntityDataAccessor<Boolean> IS_OPEN =
             SynchedEntityData.defineId(PuertaJaulaEntity.class, EntityDataSerializers.BOOLEAN);
 
@@ -34,7 +33,6 @@ public class PuertaJaulaEntity extends BaseEntity {
     private static final EntityDataAccessor<Direction> DATA_FACING =
             SynchedEntityData.defineId(PuertaJaulaEntity.class, EntityDataSerializers.DIRECTION);
 
-    // ==================== ANIMATION STATES ====================
     private enum AnimState {
         LOCKED(0),      // Bloqueada (lock.idle)
         UNLOCKING(1),   // Desbloqueando (unlock)
@@ -56,7 +54,6 @@ public class PuertaJaulaEntity extends BaseEntity {
         }
     }
 
-    // ==================== ANIMATION DEFINITIONS ====================
     private static final RawAnimation ANIM_LOCK_IDLE =
             RawAnimation.begin().thenLoop("animation.lock.idle");
     private static final RawAnimation ANIM_UNLOCK =
@@ -70,8 +67,6 @@ public class PuertaJaulaEntity extends BaseEntity {
     private static final RawAnimation ANIM_CLOSE_IDLE =
             RawAnimation.begin().thenLoop("animation.close.idle");
 
-    // ==================== CONSTANTS ====================
-    // Duraciones exactas de las animaciones (en ticks: 20 ticks = 1 segundo)
     private static final int UNLOCK_ANIM_DURATION = 15;  // 0.75s * 20 = 15 ticks
     private static final int OPEN_ANIM_DURATION = 9;     // 0.45s * 20 = 9 ticks
     private static final int CLOSE_ANIM_DURATION = 9;    // 0.45s * 20 = 9 ticks
@@ -82,15 +77,12 @@ public class PuertaJaulaEntity extends BaseEntity {
     private static final String NBT_FACING = "Facing";
     private static final String NBT_ANIM_TIMER = "AnimTimer";
 
-    // ==================== FIELDS ====================
     private int animationTimer = 0;
 
-    // ==================== CONSTRUCTOR ====================
     public PuertaJaulaEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
         super(entityType, level);
     }
 
-    // ==================== ENTITY DATA SETUP ====================
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
@@ -100,7 +92,6 @@ public class PuertaJaulaEntity extends BaseEntity {
         builder.define(DATA_FACING, Direction.NORTH);
     }
 
-    // ==================== GETTERS & SETTERS ====================
     public Direction getFacing() {
         return this.entityData.get(DATA_FACING);
     }
@@ -143,7 +134,6 @@ public class PuertaJaulaEntity extends BaseEntity {
         animationTimer = 0;
     }
 
-    // ==================== STATE TRANSITIONS ====================
     private void startUnlocking() {
         setAnimState(AnimState.UNLOCKING);
     }
@@ -166,7 +156,6 @@ public class PuertaJaulaEntity extends BaseEntity {
         setAnimState(AnimState.CLOSED);
     }
 
-    // ==================== TICK LOGIC ====================
     @Override
     public void tick() {
         super.tick();
@@ -215,7 +204,6 @@ public class PuertaJaulaEntity extends BaseEntity {
         }
     }
 
-    // ==================== ANIMATION CONTROLLER ====================
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(
@@ -261,7 +249,6 @@ public class PuertaJaulaEntity extends BaseEntity {
         return PlayState.CONTINUE;
     }
 
-    // ==================== PLAYER INTERACTION ====================
     @Override
     public void handleNormalInteract(Player player) {
         if (player.level().isClientSide) return;
@@ -270,7 +257,6 @@ public class PuertaJaulaEntity extends BaseEntity {
 
         switch (currentState) {
             case LOCKED:
-                // Intentar desbloquear con ganzúa
                 if (hasRequiredItem(player)) {
                     consumeRequiredItem(player);
                     startUnlocking();
@@ -282,18 +268,15 @@ public class PuertaJaulaEntity extends BaseEntity {
                 break;
 
             case OPEN:
-                // Cerrar puerta
                 startClosing();
                 player.sendSystemMessage(Component.literal("§eCerrando puerta..."));
                 break;
 
             case CLOSED:
-                // Abrir puerta
                 startOpening();
                 player.sendSystemMessage(Component.literal("§aAbriendo puerta..."));
                 break;
 
-            // Durante animaciones, no hacer nada (sin spam)
             case UNLOCKING:
             case OPENING:
             case CLOSING:
@@ -321,7 +304,6 @@ public class PuertaJaulaEntity extends BaseEntity {
         }
     }
 
-    // ==================== NBT SERIALIZATION ====================
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
@@ -354,13 +336,11 @@ public class PuertaJaulaEntity extends BaseEntity {
         }
     }
 
-    // ==================== ATTRIBUTES ====================
     public static AttributeSupplier.Builder setAttributes() {
         return PathfinderMob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, Double.POSITIVE_INFINITY);
     }
 
-    // ==================== COLLISION ====================
     @Override
     public boolean canBeCollidedWith() {
         return !isOpen();
@@ -393,7 +373,6 @@ public class PuertaJaulaEntity extends BaseEntity {
         }
     }
 
-    // ==================== BOUNDING BOX ====================
     @Override
     protected @NotNull AABB makeBoundingBox() {
         double x = this.getX();

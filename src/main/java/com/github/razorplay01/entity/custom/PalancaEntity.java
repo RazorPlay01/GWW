@@ -1,6 +1,8 @@
 package com.github.razorplay01.entity.custom;
 
 import com.github.razorplay01.entity.BaseInteractiveEntity;
+import com.github.razorplay01.entity.custom.util.EscapeRoomPersistable;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -10,7 +12,6 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -18,9 +19,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
-public class PalancaEntity extends BaseInteractiveEntity {
+public class PalancaEntity extends BaseInteractiveEntity implements EscapeRoomPersistable {
 
-    // === Datos de posición inicial (igual que en los cuadros) ===
     private static final EntityDataAccessor<Float> INITIAL_X =
             SynchedEntityData.defineId(PalancaEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Float> INITIAL_Y =
@@ -33,7 +33,7 @@ public class PalancaEntity extends BaseInteractiveEntity {
     private static final EntityDataAccessor<Boolean> PUZZLE_SOLVED =
             SynchedEntityData.defineId(PalancaEntity.class, EntityDataSerializers.BOOLEAN);
 
-    private static final double POSITION_TOLERANCE = 0.5; // bloques
+    private static final double POSITION_TOLERANCE = 0.5;
 
     private int checkCooldown = 0;
     private static final int CHECK_INTERVAL = 10;
@@ -58,8 +58,6 @@ public class PalancaEntity extends BaseInteractiveEntity {
         builder.define(PUZZLE_SOLVED, false);
     }
 
-    // ==================== POSICIÓN INICIAL ====================
-
     public void setInitialPosition(Vec3 position) {
         this.entityData.set(INITIAL_X, (float) position.x);
         this.entityData.set(INITIAL_Y, (float) position.y);
@@ -80,8 +78,6 @@ public class PalancaEntity extends BaseInteractiveEntity {
         );
     }
 
-    // ==================== ESTADO DEL PUZZLE ====================
-
     public boolean hasBeenMoved() {
         return this.entityData.get(HAS_BEEN_MOVED);
     }
@@ -98,8 +94,6 @@ public class PalancaEntity extends BaseInteractiveEntity {
         this.entityData.set(PUZZLE_SOLVED, solved);
     }
 
-    // ==================== VERIFICACIÓN ====================
-
     public boolean checkIfCorrectlyPlaced() {
         Vec3 initialPos = getInitialPosition();
         Vec3 currentPos = this.position();
@@ -111,19 +105,15 @@ public class PalancaEntity extends BaseInteractiveEntity {
         return this.position().distanceTo(getInitialPosition());
     }
 
-    // ==================== TICK Y LÓGICA ====================
-
     @Override
     public void tick() {
         super.tick();
 
         if (!this.level().isClientSide) {
-            // Spawnear item al primer movimiento
             if (isBound() && !hasBeenMoved()) {
                 setHasBeenMoved(true);
             }
 
-            // Verificación continua
             if (!isBound() && hasBeenMoved()) {
                 checkCooldown--;
                 if (checkCooldown <= 0) {
@@ -162,23 +152,19 @@ public class PalancaEntity extends BaseInteractiveEntity {
         }
 
         this.setDeltaMovement(motion);
-        this.move(MoverType.SELF, this.getDeltaMovement());
+        this.move(net.minecraft.world.entity.MoverType.SELF, this.getDeltaMovement());
     }
 
     protected void onPuzzleSolved() {
-        // Aquí puedes poner efectos especiales cuando la palanca se coloca correctamente
     }
 
     protected void onPuzzleUnsolved() {
-        // Opcional
     }
 
     public void resetPuzzleState() {
         this.entityData.set(HAS_BEEN_MOVED, false);
         this.entityData.set(PUZZLE_SOLVED, false);
     }
-
-    // ==================== INTERACCIÓN ====================
 
     @Override
     public void handleNormalInteract(Player player) {
@@ -231,8 +217,6 @@ public class PalancaEntity extends BaseInteractiveEntity {
         return false;
     }
 
-    // ==================== NBT (Guardar/Cargar) ====================
-
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
@@ -251,5 +235,28 @@ public class PalancaEntity extends BaseInteractiveEntity {
         this.entityData.set(INITIAL_Z, tag.getFloat("InitialZ"));
         this.entityData.set(HAS_BEEN_MOVED, tag.getBoolean("HasBeenMoved"));
         this.entityData.set(PUZZLE_SOLVED, tag.getBoolean("PuzzleSolved"));
+    }
+
+    @Override
+    public void saveEscapeRoomData(CompoundTag tag, Vec3 centerPos) {
+        Vec3 initialPos = getInitialPosition();
+        Vec3 relInitialPos = initialPos.subtract(centerPos);
+        tag.putDouble("RelInitialX", relInitialPos.x);
+        tag.putDouble("RelInitialY", relInitialPos.y);
+        tag.putDouble("RelInitialZ", relInitialPos.z);
+    }
+
+    @Override
+    public void restoreEscapeRoomData(CompoundTag tag, BlockPos newCenterPos) {
+        Vec3 newCenter = Vec3.atCenterOf(newCenterPos);
+        if (tag.contains("RelInitialX")) {
+            Vec3 relInitialPos = new Vec3(
+                    tag.getDouble("RelInitialX"),
+                    tag.getDouble("RelInitialY"),
+                    tag.getDouble("RelInitialZ")
+            );
+            Vec3 absInitialPos = newCenter.add(relInitialPos);
+            setInitialPosition(absInitialPos);
+        }
     }
 }

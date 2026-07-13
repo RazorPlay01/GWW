@@ -1,5 +1,6 @@
 package com.github.razorplay01.entity.custom;
 
+import com.github.razorplay01.entity.custom.util.EscapeRoomPersistable;
 import com.github.razorplay01.entity.custom.util.PuzzleEntityChecker;
 import com.github.razorplay01.system.NoiseDetectionSystem;
 import lombok.Getter;
@@ -25,24 +26,23 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import software.bernie.geckolib.animatable.GeoAnimatable;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animatable.SingletonGeoAnimatable;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
-import software.bernie.geckolib.animation.*;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 
-public class UblablaEntity extends PathfinderMob implements GeoEntity {
+public class UblablaEntity extends PathfinderMob implements GeoEntity, EscapeRoomPersistable {
 
-    // ── Synched Data ──
     private static final EntityDataAccessor<Integer> STATE =
             SynchedEntityData.defineId(UblablaEntity.class, EntityDataSerializers.INT);
 
-    // ── Estados ──
     public static final int STATE_PATROL = 0;
     public static final int STATE_ALERT = 1;
     public static final int STATE_INVESTIGATING = 2;
@@ -50,17 +50,15 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
     public static final int STATE_ATTACKING = 4;
     public static final int STATE_CHECKING = 5;
 
-    // ── Duraciones (ticks) ──
-    private static final int ALERT_DURATION = 100;          // 5 segundos
-    private static final int CHASE_MAX_DURATION = 200;      // 10 segundos
-    private static final int CHECK_WAIT_DURATION = 60;      // 3 segundos
-    private static final int INVESTIGATION_TIMEOUT = 300;   // 15 segundos
+    private static final int ALERT_DURATION = 100;
+    private static final int CHASE_MAX_DURATION = 200;
+    private static final int CHECK_WAIT_DURATION = 60;
+    private static final int INVESTIGATION_TIMEOUT = 300;
     private static final int NOISE_CHECK_INTERVAL = 12;
     private static final float NOISE_THRESHOLD = 0.72f;
-    private static final double CATCH_DISTANCE_SQ = 5.29;   // ~2.3 bloques
-    private static final double LOSE_TARGET_DISTANCE_SQ = 2500.0; // 50 bloques
+    private static final double CATCH_DISTANCE_SQ = 5.29;
+    private static final double LOSE_TARGET_DISTANCE_SQ = 2500.0;
 
-    // ── Configuración de zona ──
     @Getter @Setter private Vec3 patrolCenter;
     @Getter private double patrolRadius = 25.0;
     @Getter @Setter private BlockPos spawnPos;
@@ -68,7 +66,6 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
     @Getter private BlockPos jailMin;
     @Getter private BlockPos jailMax;
 
-    // ── Timers internos ──
     private int noiseCheckCooldown = 0;
     private int alertTimer = 0;
     private int investigationTimer = 0;
@@ -76,7 +73,6 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
     private int chaseMessageCooldown = 0;
     private int checkWaitTimer = 0;
 
-    // ── Animaciones ──
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("animation.idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("animation.walk");
@@ -84,17 +80,12 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
     private static final RawAnimation CHASE_ANIM = RawAnimation.begin().thenLoop("animation.chase");
     private static final RawAnimation ATTACK = RawAnimation.begin().thenPlay("animation.ataque");
 
-    // ── Mensajes de persecución ──
     private static final String[] CHASE_MESSAGES = {
             "¡No huyas!",
             "¡Vuelve aquí!",
             "No te haré nada... malo.",
             "¡Todo debe estar en su lugar!"
     };
-
-    // ══════════════════════════════════════════
-    // Constructor
-    // ══════════════════════════════════════════
 
     public UblablaEntity(EntityType<? extends UblablaEntity> type, Level level) {
         super(type, level);
@@ -110,10 +101,6 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
                 .add(Attributes.MOVEMENT_SPEED, 0.32)
                 .add(Attributes.FOLLOW_RANGE, 90.0);
     }
-
-    // ══════════════════════════════════════════
-    // Configuración pública
-    // ══════════════════════════════════════════
 
     public void setJailArea(BlockPos min, BlockPos max) {
         this.jailMin = min;
@@ -132,45 +119,43 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
         this.entityData.set(STATE, state);
     }
 
-    // ══════════════════════════════════════════
-    // Synched Data
-    // ══════════════════════════════════════════
-
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(STATE, STATE_PATROL);
     }
 
-    // ══════════════════════════════════════════
-    // Animaciones (GeckoLib)
-    // ══════════════════════════════════════════
-
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "ublabla_controller", 0, this::animationPredicate));
     }
 
-    private <T extends GeoAnimatable> PlayState animationPredicate(AnimationState<T> state) {
+    private <T extends GeoEntity> software.bernie.geckolib.animation.PlayState animationPredicate(software.bernie.geckolib.animation.AnimationState<T> state) {
         int s = getState();
         switch (s) {
-            case STATE_ATTACKING -> state.setAnimation(ATTACK);
-            case STATE_CHASING -> state.setAnimation(CHASE_ANIM);
-            case STATE_ALERT, STATE_CHECKING -> state.setAnimation(CHECK);
-            case STATE_INVESTIGATING -> state.setAnimation(state.isMoving() ? WALK : CHECK);
-            default -> state.setAnimation(state.isMoving() ? WALK : IDLE);
+            case STATE_ATTACKING:
+                state.setAnimation(ATTACK);
+                break;
+            case STATE_CHASING:
+                state.setAnimation(CHASE_ANIM);
+                break;
+            case STATE_ALERT, STATE_CHECKING:
+                state.setAnimation(CHECK);
+                break;
+            case STATE_INVESTIGATING:
+                state.setAnimation(state.isMoving() ? WALK : CHECK);
+                break;
+            default:
+                state.setAnimation(state.isMoving() ? WALK : IDLE);
+                break;
         }
-        return PlayState.CONTINUE;
+        return software.bernie.geckolib.animation.PlayState.CONTINUE;
     }
 
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return geoCache;
     }
-
-    // ══════════════════════════════════════════
-    // Tick principal (máquina de estados)
-    // ══════════════════════════════════════════
 
     @Override
     public void tick() {
@@ -180,12 +165,21 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
         decrementCooldowns();
 
         switch (getState()) {
-            case STATE_PATROL -> tickPatrol();
-            case STATE_ALERT -> tickAlert();
-            case STATE_INVESTIGATING -> tickInvestigating();
-            case STATE_CHECKING -> tickChecking();
-            case STATE_CHASING -> tickChasing();
-            // STATE_ATTACKING es transitorio, no necesita tick
+            case STATE_PATROL:
+                tickPatrol();
+                break;
+            case STATE_ALERT:
+                tickAlert();
+                break;
+            case STATE_INVESTIGATING:
+                tickInvestigating();
+                break;
+            case STATE_CHECKING:
+                tickChecking();
+                break;
+            case STATE_CHASING:
+                tickChasing();
+                break;
         }
     }
 
@@ -194,7 +188,6 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
         if (chaseMessageCooldown > 0) chaseMessageCooldown--;
     }
 
-    // ── Estado: PATROL ──
     private void tickPatrol() {
         if (noiseCheckCooldown > 0) return;
 
@@ -208,7 +201,6 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
         }
     }
 
-    // ── Estado: ALERT ──
     private void tickAlert() {
         alertTimer++;
         int remainingSeconds = (ALERT_DURATION - alertTimer) / 20;
@@ -231,12 +223,10 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
         }
     }
 
-    // ── Estado: INVESTIGATING ──
     private void tickInvestigating() {
         investigationTimer++;
 
-        if (investigationTarget != null &&
-                this.position().distanceToSqr(Vec3.atCenterOf(investigationTarget)) <= 2.25) {
+        if (investigationTarget != null && this.position().distanceToSqr(Vec3.atCenterOf(investigationTarget)) <= 2.25) {
             setState(STATE_CHECKING);
             getNavigation().stop();
             checkWaitTimer = CHECK_WAIT_DURATION;
@@ -250,7 +240,6 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
         }
     }
 
-    // ── Estado: CHECKING ──
     private void tickChecking() {
         if (checkWaitTimer > 0) {
             checkWaitTimer--;
@@ -263,11 +252,9 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
             broadcastMessage(anomalyMessage.get());
 
             if (areAllPlayersInsideJail()) {
-                // Jugadores dentro de la jaula pero hay anomalía → castigo directo
                 broadcastMessage("§c¡Sé que han sido ustedes! No escaparán del castigo.");
                 punishAndReset();
             } else {
-                // Jugadores fuera de la jaula → persecución normal
                 startChasing();
             }
         } else {
@@ -304,23 +291,20 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
         level().getEntitiesOfClass(Player.class, area).forEach(player -> {
             if (player instanceof ServerPlayer sp) {
                 sp.level().playSound(
-                        null,                              // null = todos escuchan
+                        null,
                         sp.blockPosition(),
-                        SoundEvents.WARDEN_ROAR,           // Sonido template
+                        SoundEvents.WARDEN_ROAR,
                         SoundSource.HOSTILE,
-                        1.0f,                              // Volumen
-                        0.8f                               // Pitch (más grave)
+                        1.0f,
+                        0.8f
                 );
             }
         });
     }
 
-
-    // ── Estado: CHASING ──
     private void tickChasing() {
         chaseTimer++;
 
-        // Verificar/actualizar objetivo
         if (!hasValidTarget()) {
             Player nearest = level().getNearestPlayer(this, 50.0);
             if (nearest != null) {
@@ -331,7 +315,6 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
             }
         }
 
-        // ¿Lo atrapó?
         if (this.getTarget() != null && this.distanceToSqr(this.getTarget()) <= CATCH_DISTANCE_SQ) {
             captureAndReset();
             return;
@@ -339,52 +322,33 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
 
         int chaseTimerSeconds = (CHASE_MAX_DURATION - chaseTimer) / 20;
         if (chaseTimerSeconds > 0) {
-            showActionBarMessage("§eUblabla te atrapara en... §c" + chaseTimerSeconds + "s");
+            showActionBarMessage("§eUblabla te atrapará en... §c" + chaseTimerSeconds + "s");
         }
 
-        // ¿Se acabó el tiempo?
         if (chaseTimer >= CHASE_MAX_DURATION) {
             broadcastMessage("§cNo me queda otra opción que utilizar mi arma secreta.");
             captureAndReset();
             return;
         }
 
-        // Mensajes aleatorios durante la persecución
         if (chaseMessageCooldown <= 0 && getRandom().nextInt(60) == 0) {
             broadcastMessage(CHASE_MESSAGES[getRandom().nextInt(CHASE_MESSAGES.length)]);
             chaseMessageCooldown = 80;
         }
     }
 
-    // ══════════════════════════════════════════
-    // Detección de anomalías (delegada a PuzzleEntityChecker)
-    // ══════════════════════════════════════════
-
-    /**
-     * Detecta anomalías en el área de patrulla.
-     * Primero comprueba si hay jugadores fuera de la zona segura,
-     * luego delega al sistema de checkers registrados.
-     *
-     * @return mensaje de la anomalía encontrada, o vacío si no hay ninguna
-     */
     private Optional<String> detectAnomalies() {
-        // 1. Comprobar jugadores fuera de la zona segura
         Optional<String> outsideCheck = checkPlayersOutsideJail();
         if (outsideCheck.isPresent()) {
             return outsideCheck;
         }
 
-        // 2. Delegar al sistema de checkers registrados
         AABB area = buildPatrolArea();
-        Optional<PuzzleEntityChecker.AnomalyResult> result =
-                PuzzleEntityChecker.findFirstAnomaly(level(), area);
+        Optional<PuzzleEntityChecker.AnomalyResult> result = PuzzleEntityChecker.findFirstAnomaly(level(), area);
 
         return result.map(PuzzleEntityChecker.AnomalyResult::message);
     }
 
-    /**
-     * Comprueba si algún jugador está fuera de la zona de la cárcel.
-     */
     private Optional<String> checkPlayersOutsideJail() {
         if (jailMin == null || jailMax == null) return Optional.empty();
 
@@ -399,10 +363,6 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
         }
         return Optional.empty();
     }
-
-    // ══════════════════════════════════════════
-    // Acciones de transición
-    // ══════════════════════════════════════════
 
     private void startChasing() {
         setState(STATE_CHASING);
@@ -422,9 +382,6 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
         resetToPatrol();
     }
 
-    /**
-     * Reinicia todos los timers, limpia el objetivo y vuelve al spawn.
-     */
     public void resetToPatrol() {
         getNavigation().stop();
         if (spawnPos != null) {
@@ -438,10 +395,6 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
         checkWaitTimer = 0;
         broadcastMessage("Volviendo a mi puesto...");
     }
-
-    // ══════════════════════════════════════════
-    // Teletransporte
-    // ══════════════════════════════════════════
 
     private void teleportPlayersToJail() {
         AABB area = buildPatrolArea();
@@ -470,15 +423,9 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
         }
     }
 
-    // ══════════════════════════════════════════
-    // Utilidades
-    // ══════════════════════════════════════════
-
     private boolean hasValidTarget() {
         LivingEntity target = this.getTarget();
-        return target != null
-                && target.isAlive()
-                && this.distanceToSqr(target) <= LOSE_TARGET_DISTANCE_SQ;
+        return target != null && target.isAlive() && this.distanceToSqr(target) <= LOSE_TARGET_DISTANCE_SQ;
     }
 
     private float getHighestGroupNoise() {
@@ -501,9 +448,6 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
         getNavigation().moveTo(target.getX() + 0.5, target.getY() + 0.1, target.getZ() + 0.5, 1.15);
     }
 
-    /**
-     * Construye el AABB del área de patrulla centrada en patrolCenter.
-     */
     private AABB buildPatrolArea() {
         double cx = patrolCenter != null ? patrolCenter.x : position().x;
         double cy = patrolCenter != null ? patrolCenter.y : position().y;
@@ -515,8 +459,6 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
         );
     }
 
-    // ── Mensajes ──
-
     private void broadcastMessage(String message) {
         AABB area = buildPatrolArea();
         level().getEntitiesOfClass(Player.class, area).forEach(player ->
@@ -527,13 +469,8 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
     private void showActionBarMessage(String message) {
         AABB area = buildPatrolArea();
         level().getEntitiesOfClass(Player.class, area).forEach(player ->
-                player.displayClientMessage(Component.literal(message), true)
-        );
+                player.displayClientMessage(Component.literal(message), true));
     }
-
-    // ══════════════════════════════════════════
-    // Goals (IA)
-    // ══════════════════════════════════════════
 
     @Override
     protected void registerGoals() {
@@ -581,9 +518,7 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
 
         @Override
         public boolean canUse() {
-            return mob.getState() == STATE_CHASING
-                    && mob.getTarget() != null
-                    && mob.getTarget().isAlive();
+            return mob.getState() == STATE_CHASING && mob.getTarget() != null && mob.getTarget().isAlive();
         }
 
         @Override
@@ -596,7 +531,6 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
             LivingEntity target = mob.getTarget();
             if (target == null) return;
 
-            // Si está a distancia de captura, el tick principal lo maneja
             if (mob.distanceToSqr(target) <= CATCH_DISTANCE_SQ) return;
 
             if (!mob.getNavigation().isInProgress()) {
@@ -604,10 +538,6 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
             }
         }
     }
-
-    // ══════════════════════════════════════════
-    // NBT (persistencia)
-    // ══════════════════════════════════════════
 
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
@@ -665,5 +595,93 @@ public class UblablaEntity extends PathfinderMob implements GeoEntity {
                 tag.getInt(prefix + "Y"),
                 tag.getInt(prefix + "Z")
         );
+    }
+
+    @Override
+    public void saveEscapeRoomData(CompoundTag tag, Vec3 centerPos) {
+        if (getPatrolCenter() != null) {
+            BlockPos relPatrol = BlockPos.containing(getPatrolCenter().subtract(centerPos));
+            tag.putInt("PatrolCenterX", relPatrol.getX());
+            tag.putInt("PatrolCenterY", relPatrol.getY());
+            tag.putInt("PatrolCenterZ", relPatrol.getZ());
+        }
+        tag.putDouble("PatrolRadius", getPatrolRadius());
+
+        if (getSpawnPos() != null) {
+            BlockPos relSpawn = getSpawnPos().subtract(BlockPos.containing(centerPos));
+            tag.putInt("SpawnX", relSpawn.getX());
+            tag.putInt("SpawnY", relSpawn.getY());
+            tag.putInt("SpawnZ", relSpawn.getZ());
+        }
+
+        if (getJailMin() != null && getJailMax() != null) {
+            BlockPos relMin = getJailMin().subtract(BlockPos.containing(centerPos));
+            BlockPos relMax = getJailMax().subtract(BlockPos.containing(centerPos));
+            tag.putInt("JailMinX", relMin.getX());
+            tag.putInt("JailMinY", relMin.getY());
+            tag.putInt("JailMinZ", relMin.getZ());
+            tag.putInt("JailMaxX", relMax.getX());
+            tag.putInt("JailMaxY", relMax.getY());
+            tag.putInt("JailMaxZ", relMax.getZ());
+        }
+
+        if (getInvestigationTarget() != null) {
+            BlockPos relInvest = getInvestigationTarget().subtract(BlockPos.containing(centerPos));
+            tag.putInt("InvestX", relInvest.getX());
+            tag.putInt("InvestY", relInvest.getY());
+            tag.putInt("InvestZ", relInvest.getZ());
+        }
+    }
+
+    @Override
+    public void restoreEscapeRoomData(CompoundTag tag, BlockPos newCenterPos) {
+        if (tag.contains("PatrolCenterX")) {
+            BlockPos relPatrol = new BlockPos(
+                    tag.getInt("PatrolCenterX"),
+                    tag.getInt("PatrolCenterY"),
+                    tag.getInt("PatrolCenterZ")
+            );
+            setPatrolCenter(Vec3.atCenterOf(newCenterPos.offset(relPatrol)));
+        }
+        if (tag.contains("PatrolRadius")) {
+            setPatrolRadius(tag.getDouble("PatrolRadius"));
+        }
+
+        if (tag.contains("SpawnX")) {
+            BlockPos relSpawn = new BlockPos(
+                    tag.getInt("SpawnX"),
+                    tag.getInt("SpawnY"),
+                    tag.getInt("SpawnZ")
+            );
+            setSpawnPos(newCenterPos.offset(relSpawn));
+        }
+
+        if (tag.contains("JailMinX")) {
+            BlockPos relMin = new BlockPos(
+                    tag.getInt("JailMinX"),
+                    tag.getInt("JailMinY"),
+                    tag.getInt("JailMinZ")
+            );
+            BlockPos relMax = new BlockPos(
+                    tag.getInt("JailMaxX"),
+                    tag.getInt("JailMaxY"),
+                    tag.getInt("JailMaxZ")
+            );
+            setJailArea(newCenterPos.offset(relMin), newCenterPos.offset(relMax));
+        }
+
+        if (tag.contains("InvestX")) {
+            BlockPos relInvest = new BlockPos(
+                    tag.getInt("InvestX"),
+                    tag.getInt("InvestY"),
+                    tag.getInt("InvestZ")
+            );
+            setInvestigationTarget(newCenterPos.offset(relInvest));
+        }
+    }
+
+    @Override
+    public void resetPuzzleState() {
+        resetToPatrol();
     }
 }

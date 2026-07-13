@@ -28,7 +28,6 @@ public class LuzTortugaEntity extends BaseEntity {
         builder.define(STATE, 0); // 0 = apagada (default)
     }
 
-    // Getters y Setters
     public int getState() {
         return this.entityData.get(STATE);
     }
@@ -38,7 +37,6 @@ public class LuzTortugaEntity extends BaseEntity {
         this.entityData.set(STATE, state);
     }
 
-    // ==================== PERSISTENCIA (Guardar/Cargar) ====================
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
@@ -58,14 +56,9 @@ public class LuzTortugaEntity extends BaseEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        // Aquí puedes agregar controladores de animación según estado si quieres
     }
 
     @Override
     public void handleNormalInteract(Player player) {
-        // Ejemplo: clic derecho cambia de estado (opcional)
-        /*if (!player.level().isClientSide) {
-            setState((getState() + 1) % 3);
-        }*/
     }
 }

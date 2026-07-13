@@ -53,7 +53,6 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
     private static final EntityDataAccessor<Direction> DATA_FACING =
             SynchedEntityData.defineId(PanelFusiblesEntity.class, EntityDataSerializers.DIRECTION);
 
-    // === ESTADOS DE LOS PUZZLES (persistentes y sincronizados) ===
     private static final EntityDataAccessor<Boolean> PUZZLE_1_SOLVED =
             SynchedEntityData.defineId(PanelFusiblesEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> PUZZLE_2_SOLVED =
@@ -73,11 +72,8 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
             "fusil_4", "fusil_5", "fusil_6"
     };
 
-    // ==================== SOLUCIONES DE LOS PUZZLES ====================
-    // Puzzle 1: Slots 0, 1, 2 → Orden: Rojo, Verde, Azul (izquierda a derecha)
     private static final int[] PUZZLE_1_SOLUTION = {FUSE_ROJO, FUSE_VERDE, FUSE_AZUL};
 
-    // Puzzle 2: Slots 3, 4, 5 → Orden: Rojo, Verde, Azul (izquierda a derecha)
     private static final int[] PUZZLE_2_SOLUTION = {FUSE_ROJO, FUSE_VERDE, FUSE_AZUL};
 
     public PanelFusiblesEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
@@ -104,7 +100,6 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
         builder.define(PUZZLE_2_SOLVED, false);
     }
 
-    // ==================== SLOTS ====================
     public int getFuseSlot(int index) {
         if (index < 0 || index >= 6) return FUSE_NONE;
         return entityData.get(SLOTS[index]);
@@ -119,7 +114,6 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
         return getFuseSlot(index) != FUSE_NONE;
     }
 
-    // ==================== PUZZLE STATE ====================
     public boolean isPuzzle1Solved() {
         return entityData.get(PUZZLE_1_SOLVED);
     }
@@ -142,7 +136,6 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
         if (!list.contains(relativePos)) {
             list.add(relativePos);
 
-            // Aplicar estado actual del puzzle al vincular
             int currentState = (puzzleId == 1)
                     ? (isPuzzle1Solved() ? 2 : (areAllSlotsFilled(1) ? 1 : 0))
                     : (isPuzzle2Solved() ? 2 : (areAllSlotsFilled(2) ? 1 : 0));
@@ -221,8 +214,6 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
                     .forEach(t -> t.setState(targetState));
         }
     }
-
-    // ==================== VERIFICACIÓN DE PUZZLES ====================
 
     /**
      * Verifica si el Puzzle 1 (slots 0,1,2) tiene la combinación correcta.
@@ -304,7 +295,6 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
             }
         }
 
-        // Actualizar tortugas del puzzle modificado
         updateLinkedTurtles(puzzleId, newState);
 
         // Mensaje final si ambos están resueltos
@@ -319,7 +309,6 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
         return (puzzleId == 1 ? linkedTurtlesPuzzle1 : linkedTurtlesPuzzle2).size();
     }
 
-    // ==================== HELPERS ====================
     private int partNameToIndex(String partName) {
         for (int i = 0; i < PART_NAMES.length; i++) {
             if (PART_NAMES[i].equals(partName)) {
@@ -354,7 +343,6 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
         };
     }
 
-    // ==================== FACING ====================
     public Direction getFacing() {
         return this.entityData.get(DATA_FACING);
     }
@@ -366,7 +354,6 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
         }
     }
 
-    // ==================== INTERACCIÓN ====================
     @Override
     public void handleNormalInteract(Player player) {
     }
@@ -478,7 +465,6 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
         }
     }
 
-    // ==================== PERSISTENCIA ====================
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
@@ -520,12 +506,10 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
         linkedDoors.addAll(loadLinkedList(tag, "LinkedDoors"));
     }
 
-    // ==================== ANIMACIÓN ====================
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
     }
 
-    // ==================== BOUNDING BOX ====================
     @Override
     protected AABB makeBoundingBox() {
         double x = this.getX();
@@ -564,7 +548,6 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
         }
     }
 
-    // ==================== MULTI-PART HITBOX ====================
     @Override
     public EntityHitboxData<PanelFusiblesEntity> getEntityHitboxData() {
         if (hitboxData == null) {
@@ -578,7 +561,6 @@ public class PanelFusiblesEntity extends BaseEntity implements GeckoLibMultiPart
         return false;
     }
 
-    // ==================== COLORES ====================
     public static int getFuseColor(int fuseType) {
         return switch (fuseType) {
             case FUSE_ROJO -> 0xFFFF0000;

@@ -106,10 +106,9 @@ public class PuertaAticoEntity extends BaseEntity {
         }
     }
 
-    // ==================== COLISIÓN SELECTIVA ====================
     @Override
     public boolean canBeCollidedWith() {
-        return !isOpen();           // Permite pasar cuando está abierta
+        return !isOpen();
     }
 
     @Override
@@ -119,7 +118,6 @@ public class PuertaAticoEntity extends BaseEntity {
 
     @Override
     public void push(Entity entity) {
-        // No empuja al jugador cuando está abierta
         if (!isOpen()) {
             super.push(entity);
         }

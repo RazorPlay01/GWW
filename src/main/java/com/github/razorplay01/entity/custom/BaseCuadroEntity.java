@@ -1,7 +1,9 @@
 package com.github.razorplay01.entity.custom;
 
 import com.github.razorplay01.entity.BaseInteractiveEntity;
+import com.github.razorplay01.entity.custom.util.EscapeRoomPersistable;
 import com.github.razorplay01.item.ModItems;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -12,16 +14,15 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 
-public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
+public abstract class BaseCuadroEntity extends BaseInteractiveEntity implements EscapeRoomPersistable {
 
-    // EntityDataAccessors para sincronizar datos
     private static final EntityDataAccessor<Float> INITIAL_X =
             SynchedEntityData.defineId(BaseCuadroEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Float> INITIAL_Y =
@@ -40,15 +41,13 @@ public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
     private static final EntityDataAccessor<Direction> DATA_FACING =
             SynchedEntityData.defineId(BaseCuadroEntity.class, EntityDataSerializers.DIRECTION);
 
-    // Tolerancia para considerar que está bien colocado
-    private static final double POSITION_TOLERANCE = 0.5; // bloques
-    private static final float ROTATION_TOLERANCE = 15.0F; // grados
+    private static final double POSITION_TOLERANCE = 0.5;
+    private static final float ROTATION_TOLERANCE = 15.0F;
 
     protected boolean itemSpawned = false;
 
-    // Para verificación continua
     private int checkCooldown = 0;
-    private static final int CHECK_INTERVAL = 10; // Verificar cada 10 ticks
+    private static final int CHECK_INTERVAL = 10;
 
     public BaseCuadroEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
         super(entityType, level);
@@ -72,14 +71,12 @@ public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
         super.tick();
 
         if (!this.level().isClientSide) {
-            // Spawnear item al primer movimiento
             if (isBound() && !hasBeenMoved() && !itemSpawned) {
                 setHasBeenMoved(true);
                 spawnRewardItem();
                 itemSpawned = true;
             }
 
-            // Verificación continua del estado del puzzle
             if (!isBound() && hasBeenMoved()) {
                 checkCooldown--;
                 if (checkCooldown <= 0) {
@@ -88,7 +85,6 @@ public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
                     boolean isCorrect = checkIfCorrectlyPlaced();
                     boolean wasSolved = isPuzzleSolved();
 
-                    // Actualizar estado si cambió
                     if (isCorrect != wasSolved) {
                         setPuzzleSolved(isCorrect);
 
@@ -103,7 +99,6 @@ public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
         }
     }
 
-    // Métodos para posición y rotación inicial
     public void setInitialPosition(Vec3 position) {
         this.entityData.set(INITIAL_X, (float) position.x);
         this.entityData.set(INITIAL_Y, (float) position.y);
@@ -137,7 +132,6 @@ public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
         return this.entityData.get(INITIAL_PITCH);
     }
 
-    // Estado del puzzle
     public boolean hasBeenMoved() {
         return this.entityData.get(HAS_BEEN_MOVED);
     }
@@ -154,24 +148,20 @@ public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
         this.entityData.set(PUZZLE_SOLVED, solved);
     }
 
-    // Verificación de posición correcta
     public boolean checkIfCorrectlyPlaced() {
         Vec3 initialPos = getInitialPosition();
         Vec3 currentPos = this.position();
 
-        // Verificar distancia
         double distance = currentPos.distanceTo(initialPos);
         if (distance > POSITION_TOLERANCE) {
             return false;
         }
 
-        // Verificar yaw
         float yawDifference = Math.abs(normalizeAngle(this.getYRot() - getInitialYaw()));
         if (yawDifference > ROTATION_TOLERANCE) {
             return false;
         }
 
-        // Verificar pitch
         float pitchDifference = Math.abs(normalizeAngle(this.getXRot() - getInitialPitch()));
         if (pitchDifference > ROTATION_TOLERANCE) {
             return false;
@@ -186,7 +176,6 @@ public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
         return angle;
     }
 
-    // Métodos de utilidad
     public double getDistanceToInitialPosition() {
         return this.position().distanceTo(getInitialPosition());
     }
@@ -213,23 +202,18 @@ public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
         }
     }
 
-    // Eventos que pueden sobrescribirse
     protected void onPuzzleSolved() {
-        // Override en subclases para acciones específicas
     }
 
     protected void onPuzzleUnsolved() {
-        // Override en subclases para acciones específicas
     }
 
-    // Reset del puzzle
     public void resetPuzzleState() {
         this.entityData.set(HAS_BEEN_MOVED, false);
         this.entityData.set(PUZZLE_SOLVED, false);
         this.itemSpawned = false;
     }
 
-    // NBT
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
@@ -332,6 +316,34 @@ public abstract class BaseCuadroEntity extends BaseInteractiveEntity {
         } else {
             return new AABB(x - halfDepth, y, z - halfWidth,
                     x + halfDepth, y + height, z + halfWidth);
+        }
+    }
+
+    @Override
+    public void saveEscapeRoomData(CompoundTag tag, Vec3 centerPos) {
+        Vec3 initialPos = getInitialPosition();
+        Vec3 relInitialPos = initialPos.subtract(centerPos);
+        tag.putDouble("RelInitialX", relInitialPos.x);
+        tag.putDouble("RelInitialY", relInitialPos.y);
+        tag.putDouble("RelInitialZ", relInitialPos.z);
+        tag.putFloat("InitialYaw", getInitialYaw());
+        tag.putFloat("InitialPitch", getInitialPitch());
+    }
+
+    @Override
+    public void restoreEscapeRoomData(CompoundTag tag, BlockPos newCenterPos) {
+        Vec3 newCenter = Vec3.atCenterOf(newCenterPos);
+        if (tag.contains("RelInitialX")) {
+            Vec3 relInitialPos = new Vec3(
+                    tag.getDouble("RelInitialX"),
+                    tag.getDouble("RelInitialY"),
+                    tag.getDouble("RelInitialZ")
+            );
+            Vec3 absInitialPos = newCenter.add(relInitialPos);
+            setInitialPosition(absInitialPos);
+        }
+        if (tag.contains("InitialYaw")) {
+            setInitialRotation(tag.getFloat("InitialYaw"), tag.getFloat("InitialPitch"));
         }
     }
 }

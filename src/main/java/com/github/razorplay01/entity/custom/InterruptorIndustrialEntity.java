@@ -53,8 +53,6 @@ public class InterruptorIndustrialEntity extends BaseEntity {
         return getState() == 1;
     }
 
-    // ==================== LINKING CABLES ====================
-
     public void linkCable(CableEntity cable) {
         if (cable == null) return;
         Vec3 relativePos = cable.position().subtract(this.position());
@@ -100,8 +98,6 @@ public class InterruptorIndustrialEntity extends BaseEntity {
                     "§c[Interruptor] No puedes activarlo. Todos los cables deben estar activos y en estado correcto."));
         }
     }
-
-    // ==================== PERSISTENCIA ====================
 
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {

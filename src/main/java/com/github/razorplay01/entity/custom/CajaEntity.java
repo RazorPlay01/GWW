@@ -38,25 +38,17 @@ import java.util.List;
 
 public class CajaEntity extends BaseEntity {
 
-    // ========== DATOS SINCRONIZADOS (estado de apertura) ==========
     private static final EntityDataAccessor<Boolean> IS_OPEN =
             SynchedEntityData.defineId(CajaEntity.class, EntityDataSerializers.BOOLEAN);
 
-    // ========== ANIMACIONES ==========
     private static final RawAnimation ANIMATION_IDLE = RawAnimation.begin().thenLoop("animation.idle");
     private static final RawAnimation ANIMATION_OPEN = RawAnimation.begin().thenPlayAndHold("animation.open");
 
-    // ========== CONTENIDO CONFIGURABLE ==========
-    // Lista de ItemStack (cada uno con su NBT completo, como en /give)
     private final List<ItemStack> boxContents = new ArrayList<>();
 
-    // NBT completo para la entidad a invocar (formato /summon, obligatorio campo "id")
     private CompoundTag spawnNbt = new CompoundTag();
-
-    // Offset relativo a la posición de la caja (defecto: (0, 0.2, 0))
     private Vec3 spawnOffset = new Vec3(0, 0.2, 0);
 
-    // ========== ESTADO INTERNO ==========
     private boolean itemsSpawned = false;
     private int openAnimationTicks = 0;
     private int collisionCheckCooldown = 0;
@@ -66,17 +58,14 @@ public class CajaEntity extends BaseEntity {
 
     public CajaEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
         super(entityType, level);
-        // Inicialmente no hay contenido; se establecerá vía NBT o por defecto en read
     }
 
-    // ========== DEFINE SYNC DATA ==========
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(IS_OPEN, false);
     }
 
-    // ========== GETTERS / SETTERS ==========
     public boolean isOpen() {
         return this.entityData.get(IS_OPEN);
     }
@@ -91,7 +80,6 @@ public class CajaEntity extends BaseEntity {
         }
     }
 
-    // NBT de spawn (debe contener "id")
     public CompoundTag getSpawnNbt() {
         return spawnNbt;
     }
@@ -100,7 +88,6 @@ public class CajaEntity extends BaseEntity {
         this.spawnNbt = nbt.copy();
     }
 
-    // Offset
     public Vec3 getSpawnOffset() {
         return spawnOffset;
     }
@@ -113,18 +100,15 @@ public class CajaEntity extends BaseEntity {
         this.spawnOffset = new Vec3(x, y, z);
     }
 
-    // Acceso a la lista de contenidos (para añadir items desde fuera)
     public List<ItemStack> getBoxContents() {
         return boxContents;
     }
 
-    // ========== ATRIBUTOS ==========
     public static AttributeSupplier.Builder setAttributes() {
         return PathfinderMob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, Double.POSITIVE_INFINITY);
     }
 
-    // ========== TICK ==========
     @Override
     public void tick() {
         super.tick();
@@ -148,7 +132,6 @@ public class CajaEntity extends BaseEntity {
         }
     }
 
-    // ========== COLISIÓN ==========
     private void checkForInteractiveEntityCollision() {
         this.level().getEntitiesOfClass(PalancaEntity.class, this.getBoundingBox().inflate(0.5D))
                 .forEach(palancaEntity -> {
@@ -163,14 +146,12 @@ public class CajaEntity extends BaseEntity {
         }
     }
 
-    // ========== ANIMACIONES ==========
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "caja_controller", 0,
                 state -> isOpen() ? state.setAndContinue(ANIMATION_OPEN) : state.setAndContinue(ANIMATION_IDLE)));
     }
 
-    // ========== INTERACCIÓN DEL JUGADOR ==========
     @Override
     public void handleNormalInteract(Player player) {
         if (!player.level().isClientSide) {
@@ -182,24 +163,18 @@ public class CajaEntity extends BaseEntity {
         }
     }
 
-    // ========== SPANWEO DE CONTENIDO ==========
     private void spawnBoxContents() {
         if (this.level().isClientSide) return;
 
-        // 1. Si hay NBT de entidad (con "id"), generar entidad
         if (!spawnNbt.isEmpty() && spawnNbt.contains("id")) {
             spawnSpecialEntity();
             return;
         }
 
-        // 2. Si hay items en la lista, soltarlos
         if (!boxContents.isEmpty()) {
             spawnItemsFromList(boxContents);
             return;
         }
-
-        // 3. No hay contenido definido → no hacer nada
-        // (se puede enviar un log de advertencia si se desea)
     }
 
     private void spawnItemsFromList(List<ItemStack> items) {
@@ -229,15 +204,13 @@ public class CajaEntity extends BaseEntity {
     }
 
     private void spawnSpecialEntity() {
-        CompoundTag finalNbt = spawnNbt.copy(); // ya contiene "id"
+        CompoundTag finalNbt = spawnNbt.copy();
 
         try {
             ServerLevel serverLevel = (ServerLevel) this.level();
 
-            // Posición de spawn = posición de la caja + offset
             Vec3 spawnPos = this.position().add(spawnOffset);
 
-            // Usar el mismo método que el comando /summon
             Entity entity = EntityType.loadEntityRecursive(finalNbt, serverLevel, (e) -> {
                 e.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, e.getYRot(), e.getXRot());
                 return e;
@@ -248,13 +221,11 @@ public class CajaEntity extends BaseEntity {
                 return;
             }
 
-            // Si es un Mob, inicializarlo como en el comando /summon
             if (entity instanceof Mob mob) {
                 mob.finalizeSpawn(serverLevel, serverLevel.getCurrentDifficultyAt(entity.blockPosition()),
                         MobSpawnType.COMMAND, (SpawnGroupData) null);
             }
 
-            // Agregar al mundo
             if (!serverLevel.tryAddFreshEntityWithPassengers(entity)) {
                 GWW.LOGGER.error("§c[No se pudo agregar la entidad (UUID duplicado?)]");
             }
@@ -265,7 +236,6 @@ public class CajaEntity extends BaseEntity {
         }
     }
 
-    // ========== RESET ==========
     public void reset() {
         setOpen(false);
         itemsSpawned = false;
@@ -277,14 +247,12 @@ public class CajaEntity extends BaseEntity {
         if (!isOpen()) setOpen(true);
     }
 
-    // ========== NBT ==========
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putBoolean("IsOpen", isOpen());
         tag.putBoolean("ItemsSpawned", itemsSpawned);
 
-        // Guardar items (cada uno con todo su NBT)
         ListTag itemList = new ListTag();
         var provider = this.level().registryAccess();
         for (ItemStack stack : boxContents) {
@@ -294,12 +262,10 @@ public class CajaEntity extends BaseEntity {
         }
         tag.put("BoxContents", itemList);
 
-        // Guardar NBT de spawn (formato /summon)
         if (!spawnNbt.isEmpty()) {
             tag.put("SpawnNbt", spawnNbt);
         }
 
-        // Guardar offset
         tag.putDouble("SpawnOffsetX", spawnOffset.x);
         tag.putDouble("SpawnOffsetY", spawnOffset.y);
         tag.putDouble("SpawnOffsetZ", spawnOffset.z);
@@ -314,7 +280,6 @@ public class CajaEntity extends BaseEntity {
         var provider = this.level().registryAccess();
         boolean hasCustomContent = false;
 
-        // Leer items
         if (tag.contains("BoxContents")) {
             Tag raw = tag.get("BoxContents");
             if (raw instanceof ListTag list) {
@@ -332,7 +297,6 @@ public class CajaEntity extends BaseEntity {
             }
         }
 
-        // Leer NBT de spawn
         if (tag.contains("SpawnNbt", 10)) {
             spawnNbt = tag.getCompound("SpawnNbt").copy();
             if (!spawnNbt.isEmpty() && spawnNbt.contains("id")) {
@@ -340,14 +304,12 @@ public class CajaEntity extends BaseEntity {
             }
         }
 
-        // Leer offset
         double ox = tag.getDouble("SpawnOffsetX");
         double oy = tag.getDouble("SpawnOffsetY");
         double oz = tag.getDouble("SpawnOffsetZ");
         this.spawnOffset = new Vec3(ox, oy, oz);
     }
 
-    // ========== COLISIÓN ==========
     @Override
     public boolean canBeCollidedWith() {
         return true;

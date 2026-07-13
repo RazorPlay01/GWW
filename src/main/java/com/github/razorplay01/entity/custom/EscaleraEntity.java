@@ -37,8 +37,6 @@ public class EscaleraEntity extends BaseInteractiveEntity implements GeckoLibMul
                 .add(Attributes.MAX_HEALTH, Double.POSITIVE_INFINITY);
     }
 
-    // ==================== HITBOX DATA ====================
-
     @Override
     public EntityHitboxData<EscaleraEntity> getEntityHitboxData() {
         if (hitboxData == null) {
@@ -53,13 +51,11 @@ public class EscaleraEntity extends BaseInteractiveEntity implements GeckoLibMul
         return false;
     }
 
-    // ==================== TICK ====================
 
     @Override
     public void tick() {
         super.tick();
 
-        // Ejecutar en AMBOS lados (cliente y servidor) para colisión suave
         if (!isBound()) {
             handleSolidStepCollisions();
         }
@@ -69,7 +65,6 @@ public class EscaleraEntity extends BaseInteractiveEntity implements GeckoLibMul
         }
     }
 
-    // ==================== GRAVEDAD ====================
 
     private void handleGravityAndMovement() {
         this.setNoGravity(false);
@@ -87,7 +82,6 @@ public class EscaleraEntity extends BaseInteractiveEntity implements GeckoLibMul
         this.move(MoverType.SELF, this.getDeltaMovement());
     }
 
-    // ==================== COLISIÓN SÓLIDA DE ESCALONES ====================
 
     /**
      * Simula colisión sólida con los escalones.
@@ -100,7 +94,6 @@ public class EscaleraEntity extends BaseInteractiveEntity implements GeckoLibMul
             return;
         }
 
-        // Buscar jugadores cercanos
         AABB searchArea = this.getBoundingBox().inflate(5.0);
         List<Player> players = this.level().getEntitiesOfClass(Player.class, searchArea);
 
@@ -116,18 +109,15 @@ public class EscaleraEntity extends BaseInteractiveEntity implements GeckoLibMul
         AABB playerBox = player.getBoundingBox();
         Vec3 playerVel = player.getDeltaMovement();
 
-        // AABB del jugador en el siguiente tick (predicción)
         AABB nextPlayerBox = playerBox.move(playerVel);
 
         for (MultiPart<EscaleraEntity> part : parts) {
             AABB stepBox = part.getEntity().getBoundingBox();
 
-            // Solo procesar si hay intersección predicha
             if (!nextPlayerBox.intersects(stepBox)) {
                 continue;
             }
 
-            // Resolver colisión
             resolveCollision(player, playerBox, stepBox);
         }
     }
@@ -139,17 +129,14 @@ public class EscaleraEntity extends BaseInteractiveEntity implements GeckoLibMul
     private void resolveCollision(Player player, AABB playerBox, AABB stepBox) {
         Vec3 playerVel = player.getDeltaMovement();
 
-        // Calcular solapamiento en cada eje
         double overlapX = calculateOverlap(playerBox.minX, playerBox.maxX, stepBox.minX, stepBox.maxX);
         double overlapY = calculateOverlap(playerBox.minY, playerBox.maxY, stepBox.minY, stepBox.maxY);
         double overlapZ = calculateOverlap(playerBox.minZ, playerBox.maxZ, stepBox.minZ, stepBox.maxZ);
 
-        // Si no hay solapamiento real, salir
         if (overlapX <= 0 || overlapY <= 0 || overlapZ <= 0) {
             return;
         }
 
-        // Determinar el eje de menor penetración para resolver
         double playerCenterX = (playerBox.minX + playerBox.maxX) / 2;
         double playerCenterY = (playerBox.minY + playerBox.maxY) / 2;
         double playerCenterZ = (playerBox.minZ + playerBox.maxZ) / 2;
@@ -158,15 +145,11 @@ public class EscaleraEntity extends BaseInteractiveEntity implements GeckoLibMul
         double stepCenterY = (stepBox.minY + stepBox.maxY) / 2;
         double stepCenterZ = (stepBox.minZ + stepBox.maxZ) / 2;
 
-        // Encontrar el eje de menor penetración
         if (overlapY <= overlapX && overlapY <= overlapZ) {
-            // Resolver en Y (arriba/abajo)
             resolveY(player, playerBox, stepBox, playerCenterY, stepCenterY, playerVel);
         } else if (overlapX <= overlapZ) {
-            // Resolver en X
             resolveX(player, playerCenterX, stepCenterX, overlapX, playerVel);
         } else {
-            // Resolver en Z
             resolveZ(player, playerCenterZ, stepCenterZ, overlapZ, playerVel);
         }
     }
@@ -184,11 +167,9 @@ public class EscaleraEntity extends BaseInteractiveEntity implements GeckoLibMul
     private void resolveY(Player player, AABB playerBox, AABB stepBox,
                           double playerCenterY, double stepCenterY, Vec3 playerVel) {
         if (playerCenterY > stepCenterY) {
-            // Jugador está ARRIBA del escalón - pararlo encima
             double newY = stepBox.maxY;
             player.setPos(player.getX(), newY, player.getZ());
 
-            // Cancelar velocidad hacia abajo
             if (playerVel.y < 0) {
                 player.setDeltaMovement(playerVel.x, 0, playerVel.z);
             }
@@ -199,8 +180,6 @@ public class EscaleraEntity extends BaseInteractiveEntity implements GeckoLibMul
             /*// Jugador está ABAJO del escalón - bloquearlo (techo)
             double newY = stepBox.minY - playerBox.getYsize() - 0.01;
             player.setPos(player.getX(), newY, player.getZ());
-
-            // Cancelar velocidad hacia arriba
             */
             if (playerVel.y > 0) {
                 player.setDeltaMovement(playerVel.x, 0, playerVel.z);
@@ -215,16 +194,13 @@ public class EscaleraEntity extends BaseInteractiveEntity implements GeckoLibMul
                           double overlapX, Vec3 playerVel) {
         double pushX;
         if (playerCenterX > stepCenterX) {
-            // Empujar hacia +X
             pushX = overlapX + 0.01;
         } else {
-            // Empujar hacia -X
             pushX = -(overlapX + 0.01);
         }
 
         player.setPos(player.getX() + pushX, player.getY(), player.getZ());
 
-        // Cancelar velocidad en X
         player.setDeltaMovement(0, playerVel.y, playerVel.z);
     }
 
@@ -235,20 +211,15 @@ public class EscaleraEntity extends BaseInteractiveEntity implements GeckoLibMul
                           double overlapZ, Vec3 playerVel) {
         double pushZ;
         if (playerCenterZ > stepCenterZ) {
-            // Empujar hacia +Z
             pushZ = overlapZ + 0.01;
         } else {
-            // Empujar hacia -Z
             pushZ = -(overlapZ + 0.01);
         }
 
         player.setPos(player.getX(), player.getY(), player.getZ() + pushZ);
 
-        // Cancelar velocidad en Z
         player.setDeltaMovement(playerVel.x, playerVel.y, 0);
     }
-
-    // ==================== CONFIGURACIÓN DE ENTIDAD ====================
 
     @Override
     public boolean isPushable() {
@@ -264,8 +235,6 @@ public class EscaleraEntity extends BaseInteractiveEntity implements GeckoLibMul
     public boolean canCollideWith(Entity entity) {
         return false;
     }
-
-    // ==================== BOUND/UNBOUND ====================
 
     @Override
     protected void onBound(Player player) {

@@ -33,7 +33,6 @@ public class FigurasParedEntity extends BaseEntity {
         builder.define(DATA_FACING, Direction.NORTH);
     }
 
-    // Getters y Setters
     public int getState() {
         return this.entityData.get(STATE);
     }
@@ -69,7 +68,7 @@ public class FigurasParedEntity extends BaseEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        // Aquí puedes agregar controladores de animación según estado si quieres
+
     }
 
     @Override

@@ -66,7 +66,6 @@ public class RejaDuctoEntity extends BaseEntity {
         }
     }
 
-    // ==================== LINKING ====================
 
     public void linkPowerPanel(PanelEnergiaEntity panel, Vec3 roomCenter) {
         if (panel == null || roomCenter == null) return;
@@ -104,7 +103,6 @@ public class RejaDuctoEntity extends BaseEntity {
     public void tryOpenAutomatically() {
         if (!isOpen() && isPowerPanelActive()) {
             setOpen(true);
-            // Opcional: mensaje global o partículas
         }
     }
 
@@ -112,8 +110,6 @@ public class RejaDuctoEntity extends BaseEntity {
     public void handleNormalInteract(Player player) {
       // []
     }
-
-    // ==================== PERSISTENCIA ====================
 
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
@@ -154,7 +150,6 @@ public class RejaDuctoEntity extends BaseEntity {
         return linkedPowerPanels;
     }
 
-    // ==================== COLISIÓN ====================
     @Override
     public boolean canBeCollidedWith() {
         return !isOpen();

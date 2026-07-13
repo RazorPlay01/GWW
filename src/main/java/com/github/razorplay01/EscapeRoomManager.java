@@ -1,6 +1,7 @@
 package com.github.razorplay01;
 
 import com.github.razorplay01.entity.custom.*;
+import com.github.razorplay01.entity.custom.util.EscapeRoomPersistable;
 import lombok.Getter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.*;
@@ -19,7 +20,6 @@ import java.util.Map;
 
 public class EscapeRoomManager {
     private EscapeRoomManager() {
-        /* This utility class should not be instantiated */
     }
 
     private static final Map<String, List<BlockPos>> instancePositions = new HashMap<>();
@@ -104,67 +104,15 @@ public class EscapeRoomManager {
             entity.save(entityData);
             this.entityType = entityData.getString("id");
 
-            switch (entity) {
-                case BaseCuadroEntity cuadro -> {
-                    this.hasPuzzleData = true;
-                    Vec3 initialPos = cuadro.getInitialPosition();
-                    this.relativeInitialPos = initialPos.subtract(centerPos);
-                    this.initialYaw = cuadro.getInitialYaw();
-                    this.initialPitch = cuadro.getInitialPitch();
-                }
-                case PalancaEntity palanca -> {
-                    this.hasPuzzleData = true;
-                    Vec3 initialPos = palanca.getInitialPosition();
-                    this.relativeInitialPos = initialPos.subtract(centerPos);
-                    this.initialYaw = 0.0F;
-                    this.initialPitch = 0.0F;
-                }
-                case UblablaEntity ublabla -> {
-                    this.hasPuzzleData = true;
-                    this.relativeInitialPos = Vec3.ZERO;
-                    this.initialYaw = 0.0F;
-                    this.initialPitch = 0.0F;
-
-                    if (ublabla.getPatrolCenter() != null) {
-                        BlockPos relPatrol = BlockPos.containing(ublabla.getPatrolCenter().subtract(centerPos));
-                        entityData.putInt("PatrolCenterX", relPatrol.getX());
-                        entityData.putInt("PatrolCenterY", relPatrol.getY());
-                        entityData.putInt("PatrolCenterZ", relPatrol.getZ());
-                    }
-                    entityData.putDouble("PatrolRadius", ublabla.getPatrolRadius());
-
-                    if (ublabla.getSpawnPos() != null) {
-                        BlockPos relSpawn = ublabla.getSpawnPos().subtract(BlockPos.containing(centerPos));
-                        entityData.putInt("SpawnX", relSpawn.getX());
-                        entityData.putInt("SpawnY", relSpawn.getY());
-                        entityData.putInt("SpawnZ", relSpawn.getZ());
-                    }
-
-                    if (ublabla.getJailMin() != null && ublabla.getJailMax() != null) {
-                        BlockPos relMin = ublabla.getJailMin().subtract(BlockPos.containing(centerPos));
-                        BlockPos relMax = ublabla.getJailMax().subtract(BlockPos.containing(centerPos));
-                        entityData.putInt("JailMinX", relMin.getX());
-                        entityData.putInt("JailMinY", relMin.getY());
-                        entityData.putInt("JailMinZ", relMin.getZ());
-                        entityData.putInt("JailMaxX", relMax.getX());
-                        entityData.putInt("JailMaxY", relMax.getY());
-                        entityData.putInt("JailMaxZ", relMax.getZ());
-                    }
-
-                    if (ublabla.getInvestigationTarget() != null) {
-                        BlockPos relInvest = ublabla.getInvestigationTarget().subtract(BlockPos.containing(centerPos));
-                        entityData.putInt("InvestX", relInvest.getX());
-                        entityData.putInt("InvestY", relInvest.getY());
-                        entityData.putInt("InvestZ", relInvest.getZ());
-                    }
-                }
-                default -> {
-                    this.hasPuzzleData = false;
-                    this.relativeInitialPos = Vec3.ZERO;
-                    this.initialYaw = 0.0F;
-                    this.initialPitch = 0.0F;
-                }
+            if (entity instanceof EscapeRoomPersistable persistable) {
+                this.hasPuzzleData = true;
+                persistable.saveEscapeRoomData(this.entityData, centerPos);
+            } else {
+                this.hasPuzzleData = false;
             }
+            this.relativeInitialPos = Vec3.ZERO;
+            this.initialYaw = 0.0F;
+            this.initialPitch = 0.0F;
         }
 
         private EntitySnapshot(String entityType, Vec3 relativePos, float yaw, float pitch,
@@ -241,8 +189,8 @@ public class EscapeRoomManager {
         try {
             CompoundTag tag = NbtIo.readCompressed(INSTANCES_FILE.toPath(), NbtAccounter.unlimitedHeap());
 
-            if (tag.contains("Rooms", 9)) {  // 9 = ListTag
-                ListTag roomsList = tag.getList("Rooms", 10); // 10 = CompoundTag
+            if (tag.contains("Rooms", 9)) {
+                ListTag roomsList = tag.getList("Rooms", 10);
 
                 for (int i = 0; i < roomsList.size(); i++) {
                     CompoundTag roomTag = roomsList.getCompound(i);
@@ -328,9 +276,6 @@ public class EscapeRoomManager {
         saveInstances();
     }
 
-    /**
-     * Captura todas las entidades en un área y las guarda con coordenadas relativas
-     */
     public static EscapeRoomData captureArea(ServerLevel level, BlockPos centerPos,
                                              int radius, String name) {
         EscapeRoomData data = new EscapeRoomData(name, centerPos, radius);
@@ -349,26 +294,17 @@ public class EscapeRoomManager {
         return data;
     }
 
-    /**
-     * Guarda el escape room en un archivo
-     */
     public static void saveToFile(EscapeRoomData data, File file) throws IOException {
         CompoundTag tag = data.serialize();
         file.getParentFile().mkdirs();
         NbtIo.writeCompressed(tag, file.toPath());
     }
 
-    /**
-     * Carga el escape room desde un archivo
-     */
     public static EscapeRoomData loadFromFile(File file) throws IOException {
         CompoundTag tag = NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap());
         return EscapeRoomData.deserialize(tag);
     }
 
-    /**
-     * Elimina todas las entidades del escape room en un área
-     */
     public static void clearArea(ServerLevel level, BlockPos centerPos, int radius) {
         AABB area = new AABB(centerPos).inflate(radius);
 
@@ -381,14 +317,10 @@ public class EscapeRoomManager {
         }
     }
 
-    /**
-     * Restaura el escape room en una nueva ubicación
-     */
     public static void restoreAt(ServerLevel level, EscapeRoomData data, BlockPos newCenterPos) {
         Vec3 newCenter = Vec3.atCenterOf(newCenterPos);
         clearArea(level, newCenterPos, data.getRadius() + 5);
         for (EntitySnapshot snapshot : data.getEntities()) {
-            // Calcular posición absoluta
             Vec3 relPos = snapshot.getRelativePos();
             Vec3 absolutePos = new Vec3(
                     newCenter.x + relPos.x,
@@ -396,113 +328,35 @@ public class EscapeRoomManager {
                     newCenter.z + relPos.z
             );
 
-            // Crear entidad desde NBT
             CompoundTag entityTag = snapshot.getEntityData().copy();
 
-            // Actualizar posición
             ListTag posList = new ListTag();
             posList.add(DoubleTag.valueOf(absolutePos.x));
             posList.add(DoubleTag.valueOf(absolutePos.y));
             posList.add(DoubleTag.valueOf(absolutePos.z));
             entityTag.put("Pos", posList);
 
-            // Actualizar rotación
             ListTag rotList = new ListTag();
             rotList.add(FloatTag.valueOf(snapshot.getYaw()));
             rotList.add(FloatTag.valueOf(snapshot.getPitch()));
             entityTag.put("Rotation", rotList);
 
-            // Generar nuevo UUID para evitar conflictos
             entityTag.putUUID("UUID", java.util.UUID.randomUUID());
 
-            // Spawnear entidad
             try {
                 Entity entity = EntityType.loadEntityRecursive(entityTag, level, e -> e);
                 if (entity != null) {
                     level.addFreshEntity(entity);
 
-                    // Post-procesamiento para entidades de puzzle y especiales
-                    switch (entity) {
-                        case BaseCuadroEntity cuadro when snapshot.isHasPuzzleData() -> {
-                            Vec3 relInitialPos = snapshot.getRelativeInitialPos();
-                            Vec3 absoluteInitialPos = new Vec3(
-                                    newCenter.x + relInitialPos.x,
-                                    newCenter.y + relInitialPos.y,
-                                    newCenter.z + relInitialPos.z
-                            );
-
-                            cuadro.setInitialPosition(absoluteInitialPos);
-                            if (cuadro instanceof Cuadro1Entity c1) {
-                                c1.setInitialRotation(snapshot.getInitialYaw(), snapshot.getInitialPitch());
-                            }
-                            cuadro.resetPuzzleState();
-                        }
-                        case PalancaEntity palanca when snapshot.isHasPuzzleData() -> {
-                            Vec3 relInitialPos = snapshot.getRelativeInitialPos();
-                            Vec3 absoluteInitialPos = new Vec3(
-                                    newCenter.x + relInitialPos.x,
-                                    newCenter.y + relInitialPos.y,
-                                    newCenter.z + relInitialPos.z
-                            );
-
-                            palanca.setInitialPosition(absoluteInitialPos);
-                            palanca.resetPuzzleState();
-                        }
-                        case UblablaEntity ublabla -> {
-                            CompoundTag extraData = snapshot.getEntityData();
-
-                            if (extraData.contains("PatrolCenterX")) {
-                                BlockPos relPatrol = new BlockPos(
-                                        extraData.getInt("PatrolCenterX"),
-                                        extraData.getInt("PatrolCenterY"),
-                                        extraData.getInt("PatrolCenterZ")
-                                );
-                                ublabla.setPatrolCenter(Vec3.atCenterOf(newCenterPos.offset(relPatrol)));
-                            }
-                            if (extraData.contains("PatrolRadius")) {
-                                ublabla.setPatrolRadius(extraData.getDouble("PatrolRadius"));
-                            }
-
-                            if (extraData.contains("SpawnX")) {
-                                BlockPos relSpawn = new BlockPos(
-                                        extraData.getInt("SpawnX"),
-                                        extraData.getInt("SpawnY"),
-                                        extraData.getInt("SpawnZ")
-                                );
-                                ublabla.setSpawnPos(newCenterPos.offset(relSpawn));
-                            }
-
-                            if (extraData.contains("JailMinX")) {
-                                BlockPos relMin = new BlockPos(
-                                        extraData.getInt("JailMinX"),
-                                        extraData.getInt("JailMinY"),
-                                        extraData.getInt("JailMinZ"));
-                                BlockPos relMax = new BlockPos(
-                                        extraData.getInt("JailMaxX"),
-                                        extraData.getInt("JailMaxY"),
-                                        extraData.getInt("JailMaxZ"));
-                                ublabla.setJailArea(
-                                        newCenterPos.offset(relMin),
-                                        newCenterPos.offset(relMax)
-                                );
-                            }
-
-                            if (extraData.contains("InvestX")) {
-                                BlockPos relInvest = new BlockPos(
-                                        extraData.getInt("InvestX"),
-                                        extraData.getInt("InvestY"),
-                                        extraData.getInt("InvestZ"));
-                                ublabla.setInvestigationTarget(newCenterPos.offset(relInvest));
-                            }
-
-                            ublabla.resetToPatrol();
-                        }
-                        default -> {
-                            // []
-                        }
+                    if (entity instanceof EscapeRoomPersistable persistable) {
+                        persistable.restoreEscapeRoomData(snapshot.getEntityData(), newCenterPos);
+                        persistable.resetPuzzleState();
                     }
 
-                    // Reset de interruptores si es necesario
+                    if (entity instanceof UblablaEntity ublabla) {
+                        ublabla.resetToPatrol();
+                    }
+
                     if (entity instanceof InterruptorIndustrialEntity interruptor) {
                         if (interruptor.isOn() && !interruptor.areAllCablesReady()) {
                             interruptor.setState(0);
@@ -613,11 +467,7 @@ public class EscapeRoomManager {
 
         for (PanelFusiblesEntity panel : panels) {
             List<Vec3> savedDoors = new ArrayList<>(panel.getLinkedDoors());
-            if (panel.areBothPuzzlesSolved()) {
-                panel.updateAllLinkedDoors();
-            } else {
-                panel.updateAllLinkedDoors();
-            }
+            panel.updateAllLinkedDoors();
         }
     }
 
@@ -632,12 +482,6 @@ public class EscapeRoomManager {
         }
     }
 
-    /**
-     * Calcula el estado correcto según la nueva lógica:
-     * 0 = incompleto (faltan fusibles)
-     * 1 = lleno pero incorrecto
-     * 2 = resuelto correctamente
-     */
     private static int calculatePuzzleState(PanelFusiblesEntity panel, int puzzleId) {
         boolean solved = (puzzleId == 1) ? panel.isPuzzle1Solved() : panel.isPuzzle2Solved();
 
@@ -652,9 +496,6 @@ public class EscapeRoomManager {
         return allFilled ? 1 : 0;
     }
 
-    /**
-     * Resetea el escape room (elimina y restaura en la misma posición)
-     */
     public static void reset(ServerLevel level, EscapeRoomData originalData, int radius) {
         clearArea(level, originalData.centerPos, radius);
         restoreAt(level, originalData, originalData.centerPos);
